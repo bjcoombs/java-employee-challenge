@@ -220,6 +220,18 @@ class EmployeeServiceTest {
                 .hasMessageContaining(id.toString());
     }
 
+    @Test
+    void deleteById_shouldThrowWhenDeleteFails() {
+        var id = UUID.randomUUID();
+        var employee = createEmployee(id, "John Doe", 50000);
+        when(employeePort.findById(id)).thenReturn(Optional.of(employee));
+        when(employeePort.deleteByName("John Doe")).thenReturn(false);
+
+        assertThatThrownBy(() -> employeeService.deleteById(id))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Failed to delete employee");
+    }
+
     private Employee createEmployee(String name, int salary) {
         return createEmployee(UUID.randomUUID(), name, salary);
     }
