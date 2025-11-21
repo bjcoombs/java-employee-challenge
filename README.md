@@ -98,6 +98,7 @@ This solution was built incrementally through a series of focused PRs:
 | [#8](https://github.com/bjcoombs/java-employee-challenge/pull/8) | EmployeeController implementing all 7 endpoints |
 | [#9](https://github.com/bjcoombs/java-employee-challenge/pull/9) | Integration tests with WireMock for retry behavior |
 | [#10](https://github.com/bjcoombs/java-employee-challenge/pull/10) | API startup and testing documentation |
+| [#11](https://github.com/bjcoombs/java-employee-challenge/pull/11) | In-memory caching for getAllEmployees endpoint |
 
 ---
 
