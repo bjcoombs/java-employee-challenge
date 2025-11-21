@@ -1,8 +1,8 @@
 package com.reliaquest.api.domain;
 
-import com.fasterxml.jackson.databind.PropertyNamingStrategies;
-import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import java.util.UUID;
+import tools.jackson.databind.PropertyNamingStrategies;
+import tools.jackson.databind.annotation.JsonNaming;
 
 @JsonNaming(Employee.PrefixNamingStrategy.class)
 public record Employee(

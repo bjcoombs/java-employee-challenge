@@ -2,13 +2,13 @@ package com.reliaquest.api.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.json.JsonMapper;
 
 class EmployeeTest {
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final JsonMapper jsonMapper = JsonMapper.builder().build();
 
     @Test
     void shouldSerializeWithEmployeePrefix() throws Exception {
@@ -20,7 +20,7 @@ class EmployeeTest {
                 "Developer",
                 "john@example.com");
 
-        String json = objectMapper.writeValueAsString(employee);
+        String json = jsonMapper.writeValueAsString(employee);
 
         assertThat(json).contains("\"id\":");
         assertThat(json).contains("\"employee_name\":\"John Doe\"");
@@ -44,7 +44,7 @@ class EmployeeTest {
                 }
                 """;
 
-        Employee employee = objectMapper.readValue(json, Employee.class);
+        Employee employee = jsonMapper.readValue(json, Employee.class);
 
         assertThat(employee.id()).isEqualTo(UUID.fromString("123e4567-e89b-12d3-a456-426614174000"));
         assertThat(employee.name()).isEqualTo("Jane Doe");
