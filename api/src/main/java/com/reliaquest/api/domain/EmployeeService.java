@@ -71,6 +71,18 @@ public class EmployeeService {
         return employeePort.create(request);
     }
 
+    /**
+     * Delete an employee by ID.
+     *
+     * <p>Note: Due to the mock server API requiring deletion by name, there is a potential race
+     * condition between finding the employee and deleting by name. Another process could delete
+     * the employee or modify its name between these operations.
+     *
+     * @param id the employee ID
+     * @return the deleted employee's name
+     * @throws EmployeeNotFoundException if employee not found
+     * @throws EmployeeDeletionException if deletion fails
+     */
     public String deleteById(UUID id) {
         Employee employee = getById(id);
         logger.info("Deleting employee id={} name={} correlationId={}", id, employee.name(), MDC.get("correlationId"));
