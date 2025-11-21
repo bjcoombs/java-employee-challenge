@@ -114,7 +114,7 @@ class EmployeeControllerTest {
 
         ResponseEntity<Employee> response = controller.createEmployee(request);
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().name()).isEqualTo("John Doe");
         verify(employeeService).create(request);
@@ -165,5 +165,48 @@ class EmployeeControllerTest {
 
         assertThatThrownBy(() -> controller.getEmployeesByNameSearch("test"))
                 .isInstanceOf(TooManyRequestsException.class);
+    }
+
+    @Test
+    void getEmployeesByNameSearch_emptyString_delegatesToService() {
+        List<Employee> employees = List.of(createTestEmployee());
+        when(employeeService.searchByName("")).thenReturn(employees);
+
+        ResponseEntity<List<Employee>> response = controller.getEmployeesByNameSearch("");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).hasSize(1);
+    }
+
+    @Test
+    void getHighestSalaryOfEmployees_noEmployees_returnsZero() {
+        when(employeeService.getHighestSalary()).thenReturn(0);
+
+        ResponseEntity<Integer> response = controller.getHighestSalaryOfEmployees();
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo(0);
+    }
+
+    @Test
+    void getTopTenHighestEarningEmployeeNames_fewerThanTen_returnsAvailable() {
+        List<String> names = List.of("Alice", "Bob");
+        when(employeeService.getTopTenHighestEarningNames()).thenReturn(names);
+
+        ResponseEntity<List<String>> response = controller.getTopTenHighestEarningEmployeeNames();
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).hasSize(2);
+        assertThat(response.getBody()).containsExactly("Alice", "Bob");
+    }
+
+    @Test
+    void getTopTenHighestEarningEmployeeNames_noEmployees_returnsEmptyList() {
+        when(employeeService.getTopTenHighestEarningNames()).thenReturn(List.of());
+
+        ResponseEntity<List<String>> response = controller.getTopTenHighestEarningEmployeeNames();
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEmpty();
     }
 }

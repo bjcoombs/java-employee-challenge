@@ -1,16 +1,22 @@
 package com.reliaquest.api.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.reliaquest.api.exception.EmployeeDeletionException;
 import com.reliaquest.api.exception.EmployeeNotFoundException;
 import com.reliaquest.api.exception.ExternalServiceException;
 import com.reliaquest.api.exception.TooManyRequestsException;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 
 class GlobalExceptionHandlerTest {
 
@@ -75,5 +81,40 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().message()).isEqualTo("Invalid UUID format");
+    }
+
+    @Test
+    void handleValidationException_returns400WithFieldErrors() {
+        BindingResult bindingResult = mock(BindingResult.class);
+        MethodArgumentNotValidException exception = mock(MethodArgumentNotValidException.class);
+
+        List<FieldError> fieldErrors = List.of(
+                new FieldError("request", "name", "must not be blank"),
+                new FieldError("request", "salary", "must be positive"));
+
+        when(exception.getBindingResult()).thenReturn(bindingResult);
+        when(bindingResult.getFieldErrors()).thenReturn(fieldErrors);
+
+        ResponseEntity<ErrorResponse> response = handler.handleValidationException(exception);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().message()).contains("name: must not be blank");
+        assertThat(response.getBody().message()).contains("salary: must be positive");
+    }
+
+    @Test
+    void handleValidationException_returnsDefaultMessageWhenNoFieldErrors() {
+        BindingResult bindingResult = mock(BindingResult.class);
+        MethodArgumentNotValidException exception = mock(MethodArgumentNotValidException.class);
+
+        when(exception.getBindingResult()).thenReturn(bindingResult);
+        when(bindingResult.getFieldErrors()).thenReturn(List.of());
+
+        ResponseEntity<ErrorResponse> response = handler.handleValidationException(exception);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().message()).isEqualTo("Validation failed");
     }
 }
