@@ -11,7 +11,10 @@ import com.reliaquest.api.domain.CreateEmployeeRequest;
 import com.reliaquest.api.domain.Employee;
 import com.reliaquest.api.exception.ExternalServiceException;
 import com.reliaquest.api.exception.TooManyRequestsException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -54,35 +57,18 @@ class EmployeeClientAdapterTest {
         wireMockServer.stop();
     }
 
-    // Helper to create employee JSON with snake_case
-    private String employeeJson(UUID id, String name, int salary, int age, String title, String email) {
-        return String.format(
-                """
-                {
-                    "id": "%s",
-                    "employee_name": "%s",
-                    "employee_salary": %d,
-                    "employee_age": %d,
-                    "employee_title": "%s",
-                    "employee_email": "%s"
-                }
-                """,
-                id, name, salary, age, title, email);
+    // Helper to load JSON fixture from resources
+    private String loadFixture(String filename) throws Exception {
+        return Files.readString(Paths.get(
+                Objects.requireNonNull(getClass().getResource(filename)).toURI()));
     }
 
     // findAll tests
 
     @Test
-    void findAll_shouldReturnEmployees_whenApiReturnsSuccess() {
+    void findAll_shouldReturnEmployees_whenApiReturnsSuccess() throws Exception {
         UUID id = UUID.randomUUID();
-        String json = String.format(
-                """
-                {
-                    "data": [%s],
-                    "status": "success"
-                }
-                """,
-                employeeJson(id, "John Doe", 50000, 30, "Engineer", "john@test.com"));
+        String json = String.format(loadFixture("employee-list-success.json"), id);
 
         stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(json)));
 
@@ -94,13 +80,8 @@ class EmployeeClientAdapterTest {
     }
 
     @Test
-    void findAll_shouldReturnEmptyList_whenApiReturnsNullData() {
-        String json = """
-                {
-                    "data": null,
-                    "status": "success"
-                }
-                """;
+    void findAll_shouldReturnEmptyList_whenApiReturnsNullData() throws Exception {
+        String json = loadFixture("employee-null-data.json");
 
         stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(json)));
 
@@ -132,16 +113,9 @@ class EmployeeClientAdapterTest {
     // findById tests
 
     @Test
-    void findById_shouldReturnEmployee_whenFound() {
+    void findById_shouldReturnEmployee_whenFound() throws Exception {
         UUID id = UUID.randomUUID();
-        String json = String.format(
-                """
-                {
-                    "data": [%s],
-                    "status": "success"
-                }
-                """,
-                employeeJson(id, "Jane Doe", 60000, 28, "Manager", "jane@test.com"));
+        String json = String.format(loadFixture("employee-findbyid-success.json"), id);
 
         stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(json)));
 
@@ -152,17 +126,10 @@ class EmployeeClientAdapterTest {
     }
 
     @Test
-    void findById_shouldReturnEmpty_whenNotFound() {
+    void findById_shouldReturnEmpty_whenNotFound() throws Exception {
         UUID searchId = UUID.randomUUID();
         UUID otherId = UUID.randomUUID();
-        String json = String.format(
-                """
-                {
-                    "data": [%s],
-                    "status": "success"
-                }
-                """,
-                employeeJson(otherId, "Jane Doe", 60000, 28, "Manager", "jane@test.com"));
+        String json = String.format(loadFixture("employee-findbyid-success.json"), otherId);
 
         stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(json)));
 
@@ -174,16 +141,9 @@ class EmployeeClientAdapterTest {
     // create tests
 
     @Test
-    void create_shouldReturnEmployee_whenApiReturnsSuccess() {
+    void create_shouldReturnEmployee_whenApiReturnsSuccess() throws Exception {
         UUID id = UUID.randomUUID();
-        String json = String.format(
-                """
-                {
-                    "data": %s,
-                    "status": "success"
-                }
-                """,
-                employeeJson(id, "New Employee", 55000, 25, "Developer", "new@test.com"));
+        String json = String.format(loadFixture("employee-create-success.json"), id);
 
         stubFor(post(urlEqualTo("/api/v1/employee")).willReturn(okJson(json)));
 
@@ -195,21 +155,15 @@ class EmployeeClientAdapterTest {
     }
 
     @Test
-    void create_shouldThrowException_whenApiReturnsNull() {
-        String json = """
-                {
-                    "data": null,
-                    "status": "error",
-                    "error": "Failed"
-                }
-                """;
+    void create_shouldThrowException_whenApiReturnsNull() throws Exception {
+        String json = loadFixture("employee-null-data.json");
 
         stubFor(post(urlEqualTo("/api/v1/employee")).willReturn(okJson(json)));
 
         CreateEmployeeRequest request = new CreateEmployeeRequest("New Employee", 55000, 25, "Developer");
 
         assertThatThrownBy(() -> adapter.create(request))
-                .isInstanceOf(RuntimeException.class)
+                .isInstanceOf(ExternalServiceException.class)
                 .hasMessageContaining("Failed to create employee");
     }
 
@@ -228,13 +182,8 @@ class EmployeeClientAdapterTest {
     // deleteByName tests
 
     @Test
-    void deleteByName_shouldReturnTrue_whenDeleteSucceeds() {
-        String json = """
-                {
-                    "data": true,
-                    "status": "success"
-                }
-                """;
+    void deleteByName_shouldReturnTrue_whenDeleteSucceeds() throws Exception {
+        String json = loadFixture("delete-success.json");
 
         stubFor(delete(urlEqualTo("/api/v1/employee")).willReturn(okJson(json)));
 
@@ -246,13 +195,8 @@ class EmployeeClientAdapterTest {
     }
 
     @Test
-    void deleteByName_shouldReturnFalse_whenDeleteFails() {
-        String json = """
-                {
-                    "data": false,
-                    "status": "error"
-                }
-                """;
+    void deleteByName_shouldReturnFalse_whenDeleteFails() throws Exception {
+        String json = loadFixture("delete-false.json");
 
         stubFor(delete(urlEqualTo("/api/v1/employee")).willReturn(okJson(json)));
 
@@ -262,13 +206,8 @@ class EmployeeClientAdapterTest {
     }
 
     @Test
-    void deleteByName_shouldReturnFalse_whenResponseIsNull() {
-        String json = """
-                {
-                    "data": null,
-                    "status": "error"
-                }
-                """;
+    void deleteByName_shouldReturnFalse_whenResponseIsNull() throws Exception {
+        String json = loadFixture("employee-null-data.json");
 
         stubFor(delete(urlEqualTo("/api/v1/employee")).willReturn(okJson(json)));
 
