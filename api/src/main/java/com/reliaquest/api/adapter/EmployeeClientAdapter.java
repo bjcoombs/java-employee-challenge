@@ -24,17 +24,26 @@ import reactor.netty.http.client.HttpClient;
 public class EmployeeClientAdapter implements EmployeePort {
 
     private static final Logger logger = LoggerFactory.getLogger(EmployeeClientAdapter.class);
-    private static final String BASE_URL = "http://localhost:8112/api/v1/employee";
+    private static final String DEFAULT_BASE_URL = "http://localhost:8112/api/v1/employee";
 
     private final WebClient webClient;
 
     public EmployeeClientAdapter(WebClient.Builder webClientBuilder) {
+        this(webClientBuilder, DEFAULT_BASE_URL);
+    }
+
+    // Package-private constructor for CGLIB proxy required by @Retryable
+    EmployeeClientAdapter() {
+        this.webClient = null;
+    }
+
+    protected EmployeeClientAdapter(WebClient.Builder webClientBuilder, String baseUrl) {
         HttpClient httpClient = HttpClient.create()
                 .responseTimeout(Duration.ofSeconds(10))
                 .option(io.netty.channel.ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000);
 
         this.webClient = webClientBuilder
-                .baseUrl(BASE_URL)
+                .baseUrl(baseUrl)
                 .clientConnector(new ReactorClientHttpConnector(httpClient))
                 .build();
     }
@@ -63,6 +72,11 @@ public class EmployeeClientAdapter implements EmployeePort {
                                     .bodyToMono(String.class)
                                     .map(body -> new RuntimeException("Client error: " + body));
                         })
+                .onStatus(
+                        HttpStatusCode::is5xxServerError,
+                        clientResponse -> clientResponse
+                                .bodyToMono(String.class)
+                                .map(body -> new RuntimeException("Server error: " + body)))
                 .bodyToMono(new ParameterizedTypeReference<ApiResponse<List<Employee>>>() {})
                 .block();
 
@@ -77,6 +91,8 @@ public class EmployeeClientAdapter implements EmployeePort {
     public Optional<Employee> findById(UUID id) {
         logger.info("Fetching employee by id: {}", id);
 
+        // Mock server doesn't provide a GET by ID endpoint, so we fetch all and filter
+        // This is a known limitation that would cause performance issues at scale
         List<Employee> allEmployees = findAll();
         return allEmployees.stream().filter(e -> e.id().equals(id)).findFirst();
     }
@@ -106,6 +122,11 @@ public class EmployeeClientAdapter implements EmployeePort {
                                     .bodyToMono(String.class)
                                     .map(body -> new RuntimeException("Client error: " + body));
                         })
+                .onStatus(
+                        HttpStatusCode::is5xxServerError,
+                        clientResponse -> clientResponse
+                                .bodyToMono(String.class)
+                                .map(body -> new RuntimeException("Server error: " + body)))
                 .bodyToMono(new ParameterizedTypeReference<ApiResponse<Employee>>() {})
                 .block();
 
@@ -144,6 +165,11 @@ public class EmployeeClientAdapter implements EmployeePort {
                                     .bodyToMono(String.class)
                                     .map(body -> new RuntimeException("Client error: " + body));
                         })
+                .onStatus(
+                        HttpStatusCode::is5xxServerError,
+                        clientResponse -> clientResponse
+                                .bodyToMono(String.class)
+                                .map(body -> new RuntimeException("Server error: " + body)))
                 .bodyToMono(new ParameterizedTypeReference<ApiResponse<Boolean>>() {})
                 .block();
 
