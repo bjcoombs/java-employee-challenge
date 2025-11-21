@@ -337,6 +337,69 @@ class EmployeeIntegrationTest {
                 });
     }
 
+    @Test
+    void getTopTenHighestEarningEmployeeNames_shouldLimitToTen_whenMoreThanTenEmployees() {
+        // Create 12 employees with different salaries
+        StringBuilder dataBuilder = new StringBuilder();
+        for (int i = 1; i <= 12; i++) {
+            if (i > 1) dataBuilder.append(",");
+            dataBuilder.append(
+                    """
+                    {
+                        "id": "%s",
+                        "employee_name": "Employee %d",
+                        "employee_salary": %d,
+                        "employee_age": 30,
+                        "employee_title": "Developer",
+                        "employee_email": "emp%d@test.com"
+                    }
+                    """
+                            .formatted(UUID.randomUUID(), i, i * 10000, i));
+        }
+
+        String mockResponse =
+                """
+                {
+                    "data": [%s],
+                    "status": "Successfully processed request."
+                }
+                """
+                        .formatted(dataBuilder.toString());
+
+        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
+
+        webTestClient
+                .get()
+                .uri("/api/v1/employee/topTenHighestEarningEmployeeNames")
+                .exchange()
+                .expectStatus()
+                .isOk()
+                .expectBody(new ParameterizedTypeReference<List<String>>() {})
+                .value(names -> {
+                    // Should only return top 10, highest salary first
+                    assertThat(names).hasSize(10);
+                    // Employee 12 (120k) should be first, Employee 3 (30k) should be last
+                    assertThat(names.getFirst()).isEqualTo("Employee 12");
+                    assertThat(names.getLast()).isEqualTo("Employee 3");
+                });
+    }
+
+    @Test
+    void getTopTenHighestEarningEmployeeNames_shouldReturnEmptyList_whenNoEmployees() throws Exception {
+        String mockResponse = loadFixture("employee-empty-list.json");
+
+        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
+
+        webTestClient
+                .get()
+                .uri("/api/v1/employee/topTenHighestEarningEmployeeNames")
+                .exchange()
+                .expectStatus()
+                .isOk()
+                .expectBody(new ParameterizedTypeReference<List<String>>() {})
+                .value(names -> assertThat(names).isEmpty());
+    }
+
     // POST /api/v1/employee - Create employee
     @Test
     void createEmployee_shouldReturnCreatedEmployee() {
