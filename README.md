@@ -89,15 +89,15 @@ This solution was built incrementally through a series of focused PRs:
 
 | PR | Description |
 |----|-------------|
-| [#1](../../pull/1) | GitHub Actions CI pipeline with automated code review |
-| [#2](../../pull/2) | Upgrade to Java 25, Spring Boot 4.0, Gradle 9.2.1 |
-| [#3](../../pull/3) | Domain models using immutable Java records |
-| [#5](../../pull/5) | EmployeePort and EmployeeClientAdapter with retry logic |
-| [#6](../../pull/6) | EmployeeService with business logic |
-| [#7](../../pull/7) | Global exception handling with correlation IDs |
-| [#8](../../pull/8) | EmployeeController implementing all 7 endpoints |
-| [#9](../../pull/9) | Integration tests with WireMock for retry behavior |
-| [#10](../../pull/10) | API startup and testing documentation |
+| [#1](https://github.com/bjcoombs/java-employee-challenge/pull/1) | GitHub Actions CI pipeline with automated code review |
+| [#2](https://github.com/bjcoombs/java-employee-challenge/pull/2) | Upgrade to Java 25, Spring Boot 4.0, Gradle 9.2.1 |
+| [#3](https://github.com/bjcoombs/java-employee-challenge/pull/3) | Domain models using immutable Java records |
+| [#5](https://github.com/bjcoombs/java-employee-challenge/pull/5) | EmployeePort and EmployeeClientAdapter with retry logic |
+| [#6](https://github.com/bjcoombs/java-employee-challenge/pull/6) | EmployeeService with business logic |
+| [#7](https://github.com/bjcoombs/java-employee-challenge/pull/7) | Global exception handling with correlation IDs |
+| [#8](https://github.com/bjcoombs/java-employee-challenge/pull/8) | EmployeeController implementing all 7 endpoints |
+| [#9](https://github.com/bjcoombs/java-employee-challenge/pull/9) | Integration tests with WireMock for retry behavior |
+| [#10](https://github.com/bjcoombs/java-employee-challenge/pull/10) | API startup and testing documentation |
 
 ---
 
