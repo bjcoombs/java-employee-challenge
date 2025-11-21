@@ -73,16 +73,13 @@ public class EmployeeClientAdapter implements EmployeePort {
     }
 
     @Override
-    @Retryable(
-            retryFor = TooManyRequestsException.class,
-            maxAttempts = 3,
-            backoff = @Backoff(delay = 500, multiplier = 2))
     public Optional<Employee> findById(UUID id) {
         String correlationId = MDC.get("correlationId");
         logger.info("Fetching employee by id={} correlationId={}", id, correlationId);
 
         // Mock server doesn't provide a GET by ID endpoint, so we fetch all and filter
         // This is a known limitation that would cause performance issues at scale
+        // Note: @Retryable not needed here as findAll() already handles retry
         List<Employee> allEmployees = findAll();
         return allEmployees.stream().filter(e -> e.id().equals(id)).findFirst();
     }
