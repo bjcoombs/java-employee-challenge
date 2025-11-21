@@ -16,6 +16,10 @@ dependencies {
     // Bean validation
     implementation 'org.springframework.boot:spring-boot-starter-validation'
 
+    // Caching
+    implementation 'org.springframework.boot:spring-boot-starter-cache'
+    implementation 'com.github.ben-manes.caffeine:caffeine:3.2.3'
+
     // Testing
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.wiremock:wiremock-standalone:3.9.1'
