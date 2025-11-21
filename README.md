@@ -85,6 +85,7 @@ This solution was built incrementally through a series of focused PRs:
 | [#6](../../pull/6) | EmployeeService with business logic |
 | [#7](../../pull/7) | Global exception handling with correlation IDs |
 | [#8](../../pull/8) | EmployeeController implementing all 7 endpoints |
+| [#9](../../pull/9) | Integration tests with WireMock for retry behavior |
 | [#10](../../pull/10) | API startup and testing documentation |
 
 ---
