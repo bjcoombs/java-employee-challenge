@@ -1,6 +1,7 @@
 package com.reliaquest.api.domain;
 
 import com.reliaquest.api.domain.port.EmployeePort;
+import com.reliaquest.api.exception.EmployeeDeletionException;
 import com.reliaquest.api.exception.EmployeeNotFoundException;
 import java.util.Comparator;
 import java.util.List;
@@ -71,7 +72,7 @@ public class EmployeeService {
                     id,
                     employee.name(),
                     MDC.get("correlationId"));
-            throw new RuntimeException("Failed to delete employee: " + employee.name());
+            throw new EmployeeDeletionException("Failed to delete employee: " + employee.name());
         }
         return employee.name();
     }

@@ -6,6 +6,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.reliaquest.api.domain.port.EmployeePort;
+import com.reliaquest.api.exception.EmployeeDeletionException;
 import com.reliaquest.api.exception.EmployeeNotFoundException;
 import java.util.List;
 import java.util.Optional;
@@ -228,7 +229,7 @@ class EmployeeServiceTest {
         when(employeePort.deleteByName("John Doe")).thenReturn(false);
 
         assertThatThrownBy(() -> employeeService.deleteById(id))
-                .isInstanceOf(RuntimeException.class)
+                .isInstanceOf(EmployeeDeletionException.class)
                 .hasMessageContaining("Failed to delete employee");
     }
 
