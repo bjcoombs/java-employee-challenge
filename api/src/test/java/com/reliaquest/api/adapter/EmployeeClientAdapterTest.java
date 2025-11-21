@@ -9,6 +9,7 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.reliaquest.api.domain.CreateEmployeeRequest;
 import com.reliaquest.api.domain.Employee;
+import com.reliaquest.api.exception.ExternalServiceException;
 import com.reliaquest.api.exception.TooManyRequestsException;
 import java.util.List;
 import java.util.Optional;
@@ -119,12 +120,12 @@ class EmployeeClientAdapterTest {
     }
 
     @Test
-    void findAll_shouldThrowRuntimeException_whenClientErrorOccurs() {
+    void findAll_shouldThrowExternalServiceException_whenClientErrorOccurs() {
         stubFor(get(urlEqualTo("/api/v1/employee"))
                 .willReturn(aResponse().withStatus(400).withBody("Bad request")));
 
         assertThatThrownBy(() -> adapter.findAll())
-                .isInstanceOf(RuntimeException.class)
+                .isInstanceOf(ExternalServiceException.class)
                 .hasMessageContaining("Client error");
     }
 
@@ -289,34 +290,34 @@ class EmployeeClientAdapterTest {
     // 5xx error handling tests
 
     @Test
-    void findAll_shouldThrowRuntimeException_when5xxErrorOccurs() {
+    void findAll_shouldThrowExternalServiceException_when5xxErrorOccurs() {
         stubFor(get(urlEqualTo("/api/v1/employee"))
                 .willReturn(aResponse().withStatus(500).withBody("Internal server error")));
 
         assertThatThrownBy(() -> adapter.findAll())
-                .isInstanceOf(RuntimeException.class)
+                .isInstanceOf(ExternalServiceException.class)
                 .hasMessageContaining("Server error");
     }
 
     @Test
-    void create_shouldThrowRuntimeException_when5xxErrorOccurs() {
+    void create_shouldThrowExternalServiceException_when5xxErrorOccurs() {
         stubFor(post(urlEqualTo("/api/v1/employee"))
                 .willReturn(aResponse().withStatus(503).withBody("Service unavailable")));
 
         CreateEmployeeRequest request = new CreateEmployeeRequest("New Employee", 55000, 25, "Developer");
 
         assertThatThrownBy(() -> adapter.create(request))
-                .isInstanceOf(RuntimeException.class)
+                .isInstanceOf(ExternalServiceException.class)
                 .hasMessageContaining("Server error");
     }
 
     @Test
-    void deleteByName_shouldThrowRuntimeException_when5xxErrorOccurs() {
+    void deleteByName_shouldThrowExternalServiceException_when5xxErrorOccurs() {
         stubFor(delete(urlEqualTo("/api/v1/employee"))
                 .willReturn(aResponse().withStatus(502).withBody("Bad gateway")));
 
         assertThatThrownBy(() -> adapter.deleteByName("John Doe"))
-                .isInstanceOf(RuntimeException.class)
+                .isInstanceOf(ExternalServiceException.class)
                 .hasMessageContaining("Server error");
     }
 
