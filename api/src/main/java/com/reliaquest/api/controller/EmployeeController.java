@@ -74,7 +74,7 @@ public class EmployeeController implements IEmployeeController<Employee, CreateE
         try {
             return UUID.fromString(id);
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid employee ID format: " + id);
+            throw new IllegalArgumentException("Invalid employee ID format: " + id, e);
         }
     }
 }
