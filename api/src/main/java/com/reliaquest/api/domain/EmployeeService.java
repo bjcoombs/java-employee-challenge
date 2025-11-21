@@ -47,7 +47,7 @@ public class EmployeeService {
                 });
     }
 
-    public Integer getHighestSalary() {
+    public int getHighestSalary() {
         logger.debug("Getting highest salary correlationId={}", MDC.get("correlationId"));
         return employeePort.findAll().stream().mapToInt(Employee::salary).max().orElse(0);
     }
@@ -76,7 +76,7 @@ public class EmployeeService {
                     id,
                     employee.name(),
                     MDC.get("correlationId"));
-            throw new EmployeeDeletionException("Failed to delete employee: " + employee.name());
+            throw new EmployeeDeletionException("Failed to delete employee id=" + id + " name=" + employee.name());
         }
         return employee.name();
     }

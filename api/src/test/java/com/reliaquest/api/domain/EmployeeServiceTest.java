@@ -263,7 +263,7 @@ class EmployeeServiceTest {
 
         assertThatThrownBy(() -> employeeService.deleteById(id))
                 .isInstanceOf(EmployeeDeletionException.class)
-                .hasMessageContaining("Failed to delete employee");
+                .hasMessageContaining("Failed to delete employee id=" + id);
     }
 
     private Employee createEmployee(String name, int salary) {
