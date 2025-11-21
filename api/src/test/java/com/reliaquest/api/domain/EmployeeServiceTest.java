@@ -88,6 +88,39 @@ class EmployeeServiceTest {
     }
 
     @Test
+    void searchByName_shouldReturnAllEmployeesWhenSearchStringIsNull() {
+        var employees = List.of(createEmployee("John Doe", 50000));
+        when(employeePort.findAll()).thenReturn(employees);
+
+        var result = employeeService.searchByName(null);
+
+        assertThat(result).hasSize(1);
+    }
+
+    @Test
+    void searchByName_shouldReturnAllEmployeesWhenSearchStringIsBlank() {
+        var employees = List.of(createEmployee("John Doe", 50000));
+        when(employeePort.findAll()).thenReturn(employees);
+
+        var result = employeeService.searchByName("   ");
+
+        assertThat(result).hasSize(1);
+    }
+
+    @Test
+    void searchByName_shouldHandleEmployeeWithNullName() {
+        var employees = List.of(
+                createEmployee("John Doe", 50000),
+                new Employee(UUID.randomUUID(), null, 60000, 30, "Manager", "test@example.com"));
+        when(employeePort.findAll()).thenReturn(employees);
+
+        var result = employeeService.searchByName("Doe");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().name()).isEqualTo("John Doe");
+    }
+
+    @Test
     void getById_shouldReturnEmployee() {
         var id = UUID.randomUUID();
         var employee = createEmployee(id, "John Doe", 50000);

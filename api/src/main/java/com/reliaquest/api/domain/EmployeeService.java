@@ -29,8 +29,12 @@ public class EmployeeService {
 
     public List<Employee> searchByName(String searchString) {
         logger.debug("Searching employees by name={} correlationId={}", searchString, MDC.get("correlationId"));
+        if (searchString == null || searchString.isBlank()) {
+            return employeePort.findAll();
+        }
+        String lowerSearchString = searchString.toLowerCase();
         return employeePort.findAll().stream()
-                .filter(e -> e.name().toLowerCase().contains(searchString.toLowerCase()))
+                .filter(e -> e.name() != null && e.name().toLowerCase().contains(lowerSearchString))
                 .toList();
     }
 
