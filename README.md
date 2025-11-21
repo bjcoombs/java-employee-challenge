@@ -132,11 +132,20 @@ deleteEmployeeById(...)
 Start **Server** Spring Boot application.
 `./gradlew server:bootRun`
 
-Each invocation of **Server** application triggers a new list of mock employee data. While live testing, you'll want to keep 
+Each invocation of **Server** application triggers a new list of mock employee data. While live testing, you'll want to keep
 this server running if you require consistent data. Additionally, the web server will randomly choose when to rate
 limit requests, so keep this mind when designing/implementing the actual Employee API.
 
 _Note_: Console logs each mock employee upon startup.
+
+### How to Run the Employee API (API module)
+
+With the Mock Employee API running, start the **API** Spring Boot application in a separate terminal:
+`./gradlew api:bootRun`
+
+The Employee API will be available at http://localhost:8111 (port 8111 avoids conflict with the mock server on 8112).
+
+For manual testing, use the HTTP request file at `api/src/test/http/employee-api.http`. This file contains pre-configured requests for all endpoints and can be executed directly in IntelliJ IDEA or VS Code with the REST Client extension.
 
 ### Code Formatting
 
