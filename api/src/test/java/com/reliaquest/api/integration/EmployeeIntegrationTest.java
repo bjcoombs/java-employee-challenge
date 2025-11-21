@@ -4,7 +4,6 @@ import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
-import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.stubbing.Scenario;
 import com.reliaquest.api.domain.CreateEmployeeRequest;
@@ -41,7 +40,7 @@ class EmployeeIntegrationTest {
     static void startWireMock() {
         wireMockServer = new WireMockServer(WireMockConfiguration.options().dynamicPort());
         wireMockServer.start();
-        WireMock.configureFor("localhost", wireMockServer.port());
+        // Note: Not using static WireMock.configureFor() to avoid conflicts with other test classes
     }
 
     @DynamicPropertySource
@@ -94,7 +93,7 @@ class EmployeeIntegrationTest {
                 """
                         .formatted(id);
 
-        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
 
         webTestClient
                 .get()
@@ -111,7 +110,7 @@ class EmployeeIntegrationTest {
     void getAllEmployees_shouldReturnEmptyList_whenNoEmployees() throws Exception {
         String mockResponse = loadFixture("employee-empty-list.json");
 
-        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
 
         webTestClient
                 .get()
@@ -145,7 +144,7 @@ class EmployeeIntegrationTest {
                 """
                         .formatted(id);
 
-        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
 
         webTestClient
                 .get()
@@ -178,7 +177,7 @@ class EmployeeIntegrationTest {
                 """
                         .formatted(id);
 
-        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
 
         // Search with uppercase should find lowercase match
         webTestClient
@@ -214,7 +213,7 @@ class EmployeeIntegrationTest {
                 """
                         .formatted(id);
 
-        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
 
         webTestClient
                 .get()
@@ -231,7 +230,7 @@ class EmployeeIntegrationTest {
         UUID id = UUID.randomUUID();
         String mockResponse = loadFixture("employee-empty-list.json");
 
-        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
 
         webTestClient.get().uri("/api/v1/employee/" + id).exchange().expectStatus().isNotFound();
     }
@@ -265,7 +264,7 @@ class EmployeeIntegrationTest {
                 """
                         .formatted(UUID.randomUUID(), UUID.randomUUID());
 
-        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
 
         webTestClient
                 .get()
@@ -281,7 +280,7 @@ class EmployeeIntegrationTest {
     void getHighestSalary_shouldReturn0_whenNoEmployees() throws Exception {
         String mockResponse = loadFixture("employee-empty-list.json");
 
-        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
 
         webTestClient
                 .get()
@@ -322,7 +321,7 @@ class EmployeeIntegrationTest {
                 """
                         .formatted(UUID.randomUUID(), UUID.randomUUID());
 
-        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
 
         webTestClient
                 .get()
@@ -366,7 +365,7 @@ class EmployeeIntegrationTest {
                 """
                         .formatted(dataBuilder.toString());
 
-        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
 
         webTestClient
                 .get()
@@ -388,7 +387,7 @@ class EmployeeIntegrationTest {
     void getTopTenHighestEarningEmployeeNames_shouldReturnEmptyList_whenNoEmployees() throws Exception {
         String mockResponse = loadFixture("employee-empty-list.json");
 
-        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
 
         webTestClient
                 .get()
@@ -420,7 +419,7 @@ class EmployeeIntegrationTest {
                 """
                         .formatted(id);
 
-        stubFor(post(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
+        wireMockServer.stubFor(post(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
 
         var request = new CreateEmployeeRequest("New Employee", 55000, 25, "Developer");
 
@@ -480,8 +479,8 @@ class EmployeeIntegrationTest {
                 }
                 """;
 
-        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(getAllResponse)));
-        stubFor(delete(urlEqualTo("/api/v1/employee")).willReturn(okJson(deleteResponse)));
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(getAllResponse)));
+        wireMockServer.stubFor(delete(urlEqualTo("/api/v1/employee")).willReturn(okJson(deleteResponse)));
 
         webTestClient
                 .delete()
@@ -498,7 +497,7 @@ class EmployeeIntegrationTest {
         UUID id = UUID.randomUUID();
         String mockResponse = loadFixture("employee-empty-list.json");
 
-        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
 
         webTestClient.delete().uri("/api/v1/employee/" + id).exchange().expectStatus().isNotFound();
     }
@@ -509,26 +508,26 @@ class EmployeeIntegrationTest {
         String successResponse = loadFixture("employee-empty-list.json");
 
         // First two requests return 429, third succeeds
-        stubFor(get(urlEqualTo("/api/v1/employee"))
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee"))
                 .inScenario("retry")
                 .whenScenarioStateIs(Scenario.STARTED)
                 .willReturn(aResponse().withStatus(429).withBody("Rate limited"))
                 .willSetStateTo("first-retry"));
 
-        stubFor(get(urlEqualTo("/api/v1/employee"))
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee"))
                 .inScenario("retry")
                 .whenScenarioStateIs("first-retry")
                 .willReturn(aResponse().withStatus(429).withBody("Rate limited"))
                 .willSetStateTo("second-retry"));
 
-        stubFor(get(urlEqualTo("/api/v1/employee"))
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee"))
                 .inScenario("retry")
                 .whenScenarioStateIs("second-retry")
                 .willReturn(okJson(successResponse)));
 
         webTestClient.get().uri("/api/v1/employee").exchange().expectStatus().isOk();
 
-        verify(3, getRequestedFor(urlEqualTo("/api/v1/employee")));
+        wireMockServer.verify(3, getRequestedFor(urlEqualTo("/api/v1/employee")));
     }
 
     @Test
@@ -551,13 +550,13 @@ class EmployeeIntegrationTest {
                         .formatted(id);
 
         // First request returns 429, second succeeds
-        stubFor(post(urlEqualTo("/api/v1/employee"))
+        wireMockServer.stubFor(post(urlEqualTo("/api/v1/employee"))
                 .inScenario("create-retry")
                 .whenScenarioStateIs(Scenario.STARTED)
                 .willReturn(aResponse().withStatus(429).withBody("Rate limited"))
                 .willSetStateTo("retry-once"));
 
-        stubFor(post(urlEqualTo("/api/v1/employee"))
+        wireMockServer.stubFor(post(urlEqualTo("/api/v1/employee"))
                 .inScenario("create-retry")
                 .whenScenarioStateIs("retry-once")
                 .willReturn(okJson(successResponse)));
@@ -573,13 +572,13 @@ class EmployeeIntegrationTest {
                 .expectStatus()
                 .isCreated();
 
-        verify(2, postRequestedFor(urlEqualTo("/api/v1/employee")));
+        wireMockServer.verify(2, postRequestedFor(urlEqualTo("/api/v1/employee")));
     }
 
     @Test
     void getAllEmployees_shouldReturn503WithRetryAfter_whenAllRetriesExhausted() {
         // All requests return 429
-        stubFor(get(urlEqualTo("/api/v1/employee"))
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee"))
                 .willReturn(aResponse().withStatus(429).withBody("Rate limited")));
 
         webTestClient
@@ -592,13 +591,13 @@ class EmployeeIntegrationTest {
                 .exists("Retry-After");
 
         // Verify all retry attempts were made (3 attempts)
-        verify(3, getRequestedFor(urlEqualTo("/api/v1/employee")));
+        wireMockServer.verify(3, getRequestedFor(urlEqualTo("/api/v1/employee")));
     }
 
     @Test
     void createEmployee_shouldReturn503WithRetryAfter_whenAllRetriesExhausted() {
         // All requests return 429
-        stubFor(post(urlEqualTo("/api/v1/employee"))
+        wireMockServer.stubFor(post(urlEqualTo("/api/v1/employee"))
                 .willReturn(aResponse().withStatus(429).withBody("Rate limited")));
 
         var request = new CreateEmployeeRequest("New Employee", 55000, 25, "Developer");
@@ -615,7 +614,7 @@ class EmployeeIntegrationTest {
                 .exists("Retry-After");
 
         // Verify all retry attempts were made
-        verify(3, postRequestedFor(urlEqualTo("/api/v1/employee")));
+        wireMockServer.verify(3, postRequestedFor(urlEqualTo("/api/v1/employee")));
     }
 
     @Test
@@ -640,8 +639,8 @@ class EmployeeIntegrationTest {
                         .formatted(id);
 
         // GET succeeds but DELETE always returns 429
-        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(getAllResponse)));
-        stubFor(delete(urlEqualTo("/api/v1/employee"))
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(getAllResponse)));
+        wireMockServer.stubFor(delete(urlEqualTo("/api/v1/employee"))
                 .willReturn(aResponse().withStatus(429).withBody("Rate limited")));
 
         webTestClient
@@ -654,13 +653,13 @@ class EmployeeIntegrationTest {
                 .exists("Retry-After");
 
         // Verify all retry attempts were made for delete
-        verify(3, deleteRequestedFor(urlEqualTo("/api/v1/employee")));
+        wireMockServer.verify(3, deleteRequestedFor(urlEqualTo("/api/v1/employee")));
     }
 
     // Error handling tests
     @Test
     void getAllEmployees_shouldReturn503_whenExternalServiceFails() {
-        stubFor(get(urlEqualTo("/api/v1/employee"))
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee"))
                 .willReturn(aResponse().withStatus(500).withBody("Internal server error")));
 
         webTestClient.get().uri("/api/v1/employee").exchange().expectStatus().is5xxServerError();
@@ -697,7 +696,7 @@ class EmployeeIntegrationTest {
                 """
                         .formatted(UUID.randomUUID());
 
-        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
 
         webTestClient
                 .get()
@@ -715,7 +714,7 @@ class EmployeeIntegrationTest {
         String mockResponse = loadFixture("employee-empty-list.json");
         String correlationId = "test-correlation-id-12345";
 
-        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
 
         webTestClient
                 .get()
@@ -732,7 +731,7 @@ class EmployeeIntegrationTest {
     void request_shouldGenerateCorrelationId_whenNotProvided() throws Exception {
         String mockResponse = loadFixture("employee-empty-list.json");
 
-        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
 
         webTestClient
                 .get()
