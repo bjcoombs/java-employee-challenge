@@ -49,9 +49,14 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ExternalServiceException.class)
     public ResponseEntity<ErrorResponse> handleExternalService(ExternalServiceException ex) {
-        logger.error("External service error correlationId={}: {}", getCorrelationId(), ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                .body(ErrorResponse.of(502, "Bad Gateway", "External service error: " + ex.getMessage()));
+        logger.error(
+                "External service error (status {}) correlationId={}: {}",
+                ex.getStatusCode(),
+                getCorrelationId(),
+                ex.getMessage());
+        String message = String.format(
+                "External service error (status %d): %s", ex.getStatusCode(), ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(ErrorResponse.of(502, "Bad Gateway", message));
     }
 
     @ExceptionHandler(ServiceUnavailableException.class)
