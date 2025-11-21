@@ -3,7 +3,19 @@ plugins {
 }
 
 dependencies {
+    // WebClient for HTTP calls
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
+    // Retry with exponential backoff
+    implementation 'org.springframework.retry:spring-retry:2.0.10'
+    implementation 'org.springframework:spring-aspects'
+
+    // Bean validation
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // Testing
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.wiremock:wiremock-standalone:3.9.1'
 }
 
 springBoot {
