@@ -96,7 +96,19 @@ This solution was built incrementally through a series of focused PRs:
 - Java 25+
 - Gradle 9.2.1+ (wrapper included)
 
-### Running the Application
+### Quick Start with Doctor Script
+
+Run the doctor script to validate your environment and optionally start both services:
+
+```bash
+# Check dependencies only
+./doctor.sh
+
+# Check dependencies and start both services
+./doctor.sh --start
+```
+
+### Running the Application Manually
 
 1. **Start the Mock Employee API** (required first):
    ```bash
