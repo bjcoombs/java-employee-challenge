@@ -48,9 +48,7 @@ public class EmployeeClientAdapter implements EmployeePort {
                 .build();
     }
 
-    // Protected no-arg constructor for CGLIB proxy (required by @Retryable)
-    // CGLIB uses Objenesis to bypass constructors at runtime, so this code path is never executed.
-    // The null assignment exists only to satisfy the compiler for the final field.
+    // Required for CGLIB proxy; Objenesis bypasses this constructor at runtime
     protected EmployeeClientAdapter() {
         this.webClient = null;
     }

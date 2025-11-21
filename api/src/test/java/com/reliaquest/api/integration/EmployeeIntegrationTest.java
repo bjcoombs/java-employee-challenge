@@ -280,6 +280,28 @@ class EmployeeIntegrationTest {
                 .isEqualTo(80000);
     }
 
+    @Test
+    void getHighestSalary_shouldReturn0_whenNoEmployees() {
+        String mockResponse =
+                """
+                {
+                    "data": [],
+                    "status": "Successfully processed request."
+                }
+                """;
+
+        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
+
+        webTestClient
+                .get()
+                .uri("/api/v1/employee/highestSalary")
+                .exchange()
+                .expectStatus()
+                .isOk()
+                .expectBody(Integer.class)
+                .isEqualTo(0);
+    }
+
     // GET /api/v1/employee/topTenHighestEarningEmployeeNames - Get top 10 names
     @Test
     void getTopTenHighestEarningEmployeeNames_shouldReturnNames() {
