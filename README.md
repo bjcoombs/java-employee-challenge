@@ -15,29 +15,40 @@ This implementation delivers a production-ready REST API that consumes the Mock 
 
 ### Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     API Module (Port 8111)                  │
-├─────────────────────────────────────────────────────────────┤
-│  Controller Layer                                           │
-│  └─ EmployeeController (implements IEmployeeController)     │
-│  └─ GlobalExceptionHandler (structured error responses)     │
-│  └─ CorrelationIdFilter (distributed tracing)               │
-├─────────────────────────────────────────────────────────────┤
-│  Domain Layer                                               │
-│  └─ EmployeeService (business logic)                        │
-│  └─ Employee, CreateEmployeeRequest (immutable records)     │
-│  └─ EmployeePort (port interface)                           │
-├─────────────────────────────────────────────────────────────┤
-│  Adapter Layer                                              │
-│  └─ EmployeeClientAdapter (WebClient + retry + caching)     │
-│  └─ EmployeeMapper (domain ↔ API transformations)           │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│               Mock Employee API (Port 8112)                 │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph "API Module (Port 8111)"
+        subgraph "Controller Layer"
+            EC[EmployeeController<br/><i>implements IEmployeeController</i>]
+            GEH[GlobalExceptionHandler<br/><i>structured error responses</i>]
+            CIF[CorrelationIdFilter<br/><i>distributed tracing</i>]
+        end
+
+        subgraph "Domain Layer"
+            ES[EmployeeService<br/><i>business logic</i>]
+            Models[Employee, CreateEmployeeRequest<br/><i>immutable records</i>]
+            EP[EmployeePort<br/><i>port interface</i>]
+        end
+
+        subgraph "Adapter Layer"
+            ECA[EmployeeClientAdapter<br/><i>WebClient + retry + caching</i>]
+            EM[EmployeeMapper<br/><i>domain ↔ API transformations</i>]
+        end
+    end
+
+    subgraph "Mock Employee API (Port 8112)"
+        Server[Mock Server<br/><i>random data + rate limiting</i>]
+    end
+
+    EC --> ES
+    ES --> EP
+    EP --> ECA
+    ECA --> Server
+
+    style EC fill:#e1f5fe
+    style ES fill:#f3e5f5
+    style ECA fill:#fff3e0
+    style Server fill:#f5f5f5
 ```
 
 ### Resilience Features
