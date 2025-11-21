@@ -5,6 +5,7 @@ import com.reliaquest.api.domain.CreateEmployeeRequest;
 import com.reliaquest.api.domain.Employee;
 import com.reliaquest.api.domain.port.EmployeePort;
 import com.reliaquest.api.exception.ExternalServiceException;
+import com.reliaquest.api.exception.ServiceUnavailableException;
 import com.reliaquest.api.exception.TooManyRequestsException;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +18,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Recover;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.ClientResponse;
@@ -171,5 +173,28 @@ public class EmployeeClientAdapter implements EmployeePort {
                 .bodyToMono(String.class)
                 .defaultIfEmpty("Unknown server error")
                 .map(body -> new ExternalServiceException("Server error while " + operation + ": " + body, statusCode));
+    }
+
+    @Recover
+    public List<Employee> recoverFindAll(TooManyRequestsException e) {
+        logger.error("All retry attempts exhausted for findAll correlationId={}", getCorrelationId(), e);
+        throw new ServiceUnavailableException("Employee service temporarily unavailable after retries", e);
+    }
+
+    @Recover
+    public Employee recoverCreate(TooManyRequestsException e, CreateEmployeeRequest request) {
+        logger.error(
+                "All retry attempts exhausted for create name={} correlationId={}",
+                request.name(),
+                getCorrelationId(),
+                e);
+        throw new ServiceUnavailableException("Employee service temporarily unavailable after retries", e);
+    }
+
+    @Recover
+    public boolean recoverDeleteByName(TooManyRequestsException e, String name) {
+        logger.error(
+                "All retry attempts exhausted for delete name={} correlationId={}", name, getCorrelationId(), e);
+        throw new ServiceUnavailableException("Employee service temporarily unavailable after retries", e);
     }
 }
