@@ -18,8 +18,10 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.cache.CacheManager;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -33,6 +35,9 @@ class EmployeeIntegrationTest {
 
     @LocalServerPort
     private int port;
+
+    @Autowired
+    private CacheManager cacheManager;
 
     private WebTestClient webTestClient;
 
@@ -53,6 +58,8 @@ class EmployeeIntegrationTest {
     @BeforeEach
     void setUp() {
         wireMockServer.resetAll();
+        // Clear the cache to ensure test isolation
+        Objects.requireNonNull(cacheManager.getCache("employees")).clear();
         // Create WebTestClient with increased timeout for retry tests
         webTestClient = WebTestClient.bindToServer()
                 .baseUrl("http://localhost:" + port)
