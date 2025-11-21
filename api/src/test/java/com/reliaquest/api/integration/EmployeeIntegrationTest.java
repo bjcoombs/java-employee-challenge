@@ -9,8 +9,11 @@ import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.stubbing.Scenario;
 import com.reliaquest.api.domain.CreateEmployeeRequest;
 import com.reliaquest.api.domain.Employee;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -63,6 +66,12 @@ class EmployeeIntegrationTest {
         wireMockServer.stop();
     }
 
+    // Helper to load JSON fixture from resources
+    private String loadFixture(String filename) throws Exception {
+        return Files.readString(
+                Paths.get(Objects.requireNonNull(getClass().getResource(filename)).toURI()));
+    }
+
     // GET /api/v1/employee - Get all employees
     @Test
     void getAllEmployees_shouldReturnEmployeeList() {
@@ -99,14 +108,8 @@ class EmployeeIntegrationTest {
     }
 
     @Test
-    void getAllEmployees_shouldReturnEmptyList_whenNoEmployees() {
-        String mockResponse =
-                """
-                {
-                    "data": [],
-                    "status": "Successfully processed request."
-                }
-                """;
+    void getAllEmployees_shouldReturnEmptyList_whenNoEmployees() throws Exception {
+        String mockResponse = loadFixture("employee-empty-list.json");
 
         stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
 
@@ -224,15 +227,9 @@ class EmployeeIntegrationTest {
     }
 
     @Test
-    void getEmployeeById_shouldReturn404_whenNotFound() {
+    void getEmployeeById_shouldReturn404_whenNotFound() throws Exception {
         UUID id = UUID.randomUUID();
-        String mockResponse =
-                """
-                {
-                    "data": [],
-                    "status": "Successfully processed request."
-                }
-                """;
+        String mockResponse = loadFixture("employee-empty-list.json");
 
         stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
 
@@ -281,14 +278,8 @@ class EmployeeIntegrationTest {
     }
 
     @Test
-    void getHighestSalary_shouldReturn0_whenNoEmployees() {
-        String mockResponse =
-                """
-                {
-                    "data": [],
-                    "status": "Successfully processed request."
-                }
-                """;
+    void getHighestSalary_shouldReturn0_whenNoEmployees() throws Exception {
+        String mockResponse = loadFixture("employee-empty-list.json");
 
         stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
 
@@ -440,15 +431,9 @@ class EmployeeIntegrationTest {
     }
 
     @Test
-    void deleteEmployee_shouldReturn404_whenNotFound() {
+    void deleteEmployee_shouldReturn404_whenNotFound() throws Exception {
         UUID id = UUID.randomUUID();
-        String mockResponse =
-                """
-                {
-                    "data": [],
-                    "status": "Successfully processed request."
-                }
-                """;
+        String mockResponse = loadFixture("employee-empty-list.json");
 
         stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
 
@@ -457,14 +442,8 @@ class EmployeeIntegrationTest {
 
     // Retry behavior tests
     @Test
-    void getAllEmployees_shouldRetryOn429_andEventuallySucceed() {
-        String successResponse =
-                """
-                {
-                    "data": [],
-                    "status": "Successfully processed request."
-                }
-                """;
+    void getAllEmployees_shouldRetryOn429_andEventuallySucceed() throws Exception {
+        String successResponse = loadFixture("employee-empty-list.json");
 
         // First two requests return 429, third succeeds
         stubFor(get(urlEqualTo("/api/v1/employee"))
