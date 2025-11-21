@@ -1,2 +1,12 @@
 spring.application.name: employee-api
 server.port: 8111
+
+employee:
+  client:
+    base-url: http://localhost:8112/api/v1/employee
+    connect-timeout: 5s
+    read-timeout: 10s
+    retry:
+      max-attempts: 3
+      delay: 500ms
+      multiplier: 2.0

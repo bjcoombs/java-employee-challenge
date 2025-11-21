@@ -1,11 +1,11 @@
 package com.reliaquest.api.adapter;
 
+import com.reliaquest.api.config.EmployeeClientProperties;
 import com.reliaquest.api.domain.CreateEmployeeRequest;
 import com.reliaquest.api.domain.Employee;
 import com.reliaquest.api.domain.port.EmployeePort;
 import com.reliaquest.api.exception.ExternalServiceException;
 import com.reliaquest.api.exception.TooManyRequestsException;
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -28,23 +28,40 @@ import reactor.netty.http.client.HttpClient;
 public class EmployeeClientAdapter implements EmployeePort {
 
     private static final Logger logger = LoggerFactory.getLogger(EmployeeClientAdapter.class);
-    private static final String DEFAULT_BASE_URL = "http://localhost:8112/api/v1/employee";
 
     private final WebClient webClient;
+    private final EmployeeClientProperties properties;
 
-    public EmployeeClientAdapter(WebClient.Builder webClientBuilder) {
-        this(webClientBuilder, DEFAULT_BASE_URL);
+    public EmployeeClientAdapter(WebClient.Builder webClientBuilder, EmployeeClientProperties properties) {
+        this.properties = properties;
+
+        HttpClient httpClient = HttpClient.create()
+                .responseTimeout(properties.readTimeout())
+                .option(
+                        io.netty.channel.ChannelOption.CONNECT_TIMEOUT_MILLIS,
+                        (int) properties.connectTimeout().toMillis());
+
+        this.webClient = webClientBuilder
+                .baseUrl(properties.baseUrl())
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
+                .build();
     }
 
     // Package-private constructor for CGLIB proxy required by @Retryable
     EmployeeClientAdapter() {
         this.webClient = null;
+        this.properties = null;
     }
 
-    protected EmployeeClientAdapter(WebClient.Builder webClientBuilder, String baseUrl) {
+    // Protected constructor for testing with custom base URL
+    protected EmployeeClientAdapter(WebClient.Builder webClientBuilder, String baseUrl, EmployeeClientProperties properties) {
+        this.properties = properties;
+
         HttpClient httpClient = HttpClient.create()
-                .responseTimeout(Duration.ofSeconds(10))
-                .option(io.netty.channel.ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000);
+                .responseTimeout(properties.readTimeout())
+                .option(
+                        io.netty.channel.ChannelOption.CONNECT_TIMEOUT_MILLIS,
+                        (int) properties.connectTimeout().toMillis());
 
         this.webClient = webClientBuilder
                 .baseUrl(baseUrl)
@@ -56,7 +73,7 @@ public class EmployeeClientAdapter implements EmployeePort {
     @Retryable(
             retryFor = TooManyRequestsException.class,
             maxAttempts = 3,
-            backoff = @Backoff(delay = 500, multiplier = 2))
+            backoff = @Backoff(delayExpression = "#{${employee.client.retry.delay:500}}", multiplier = 2))
     public List<Employee> findAll() {
         String correlationId = MDC.get("correlationId");
         logger.info("Fetching all employees correlationId={}", correlationId);
@@ -88,7 +105,7 @@ public class EmployeeClientAdapter implements EmployeePort {
     @Retryable(
             retryFor = TooManyRequestsException.class,
             maxAttempts = 3,
-            backoff = @Backoff(delay = 500, multiplier = 2))
+            backoff = @Backoff(delayExpression = "#{${employee.client.retry.delay:500}}", multiplier = 2))
     public Employee create(CreateEmployeeRequest request) {
         String correlationId = MDC.get("correlationId");
         logger.info("Creating employee name={} correlationId={}", request.name(), correlationId);
@@ -113,7 +130,7 @@ public class EmployeeClientAdapter implements EmployeePort {
     @Retryable(
             retryFor = TooManyRequestsException.class,
             maxAttempts = 3,
-            backoff = @Backoff(delay = 500, multiplier = 2))
+            backoff = @Backoff(delayExpression = "#{${employee.client.retry.delay:500}}", multiplier = 2))
     public boolean deleteByName(String name) {
         String correlationId = MDC.get("correlationId");
         logger.info("Deleting employee name={} correlationId={}", name, correlationId);
@@ -137,10 +154,14 @@ public class EmployeeClientAdapter implements EmployeePort {
         int statusCode = response.statusCode().value();
         if (statusCode == 429) {
             logger.warn("Rate limited while {} correlationId={}, will retry", operation, MDC.get("correlationId"));
-            return response.bodyToMono(String.class).map(body -> new TooManyRequestsException("Rate limited: " + body));
+            return response
+                    .bodyToMono(String.class)
+                    .defaultIfEmpty("Too many requests")
+                    .map(body -> new TooManyRequestsException("Rate limited: " + body));
         }
         return response
                 .bodyToMono(String.class)
+                .defaultIfEmpty("Unknown client error")
                 .map(body -> new ExternalServiceException("Client error: " + body, statusCode));
     }
 
@@ -149,6 +170,7 @@ public class EmployeeClientAdapter implements EmployeePort {
         logger.error("Server error {} while {} correlationId={}", statusCode, operation, MDC.get("correlationId"));
         return response
                 .bodyToMono(String.class)
+                .defaultIfEmpty("Unknown server error")
                 .map(body -> new ExternalServiceException("Server error: " + body, statusCode));
     }
 }

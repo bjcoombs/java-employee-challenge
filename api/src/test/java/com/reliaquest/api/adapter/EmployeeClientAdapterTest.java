@@ -7,12 +7,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.reliaquest.api.config.EmployeeClientProperties;
 import com.reliaquest.api.domain.CreateEmployeeRequest;
 import com.reliaquest.api.domain.Employee;
 import com.reliaquest.api.exception.ExternalServiceException;
 import com.reliaquest.api.exception.TooManyRequestsException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -29,6 +31,7 @@ class EmployeeClientAdapterTest {
 
     private WireMockServer wireMockServer;
     private EmployeeClientAdapter adapter;
+    private EmployeeClientProperties properties;
 
     @BeforeEach
     void setUp() {
@@ -47,9 +50,15 @@ class EmployeeClientAdapterTest {
 
         WebClient.Builder builder = WebClient.builder().exchangeStrategies(strategies);
 
+        // Create test properties
+        properties = new EmployeeClientProperties(
+                "http://localhost:" + wireMockServer.port() + "/api/v1/employee",
+                Duration.ofSeconds(5),
+                Duration.ofSeconds(10),
+                new EmployeeClientProperties.RetryProperties(3, Duration.ofMillis(100), 2.0));
+
         // Create adapter with test URL pointing to WireMock
-        adapter = new TestableEmployeeClientAdapter(
-                builder, "http://localhost:" + wireMockServer.port() + "/api/v1/employee");
+        adapter = new TestableEmployeeClientAdapter(builder, properties);
     }
 
     @AfterEach
@@ -59,8 +68,8 @@ class EmployeeClientAdapterTest {
 
     // Helper to load JSON fixture from resources
     private String loadFixture(String filename) throws Exception {
-        return Files.readString(Paths.get(
-                Objects.requireNonNull(getClass().getResource(filename)).toURI()));
+        return Files.readString(
+                Paths.get(Objects.requireNonNull(getClass().getResource(filename)).toURI()));
     }
 
     // findAll tests
@@ -108,6 +117,15 @@ class EmployeeClientAdapterTest {
         assertThatThrownBy(() -> adapter.findAll())
                 .isInstanceOf(ExternalServiceException.class)
                 .hasMessageContaining("Client error");
+    }
+
+    @Test
+    void findAll_shouldHandleEmptyErrorBody() {
+        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(aResponse().withStatus(400)));
+
+        assertThatThrownBy(() -> adapter.findAll())
+                .isInstanceOf(ExternalServiceException.class)
+                .hasMessageContaining("Unknown client error");
     }
 
     // findById tests
@@ -239,6 +257,15 @@ class EmployeeClientAdapterTest {
     }
 
     @Test
+    void findAll_shouldHandleEmpty5xxErrorBody() {
+        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(aResponse().withStatus(503)));
+
+        assertThatThrownBy(() -> adapter.findAll())
+                .isInstanceOf(ExternalServiceException.class)
+                .hasMessageContaining("Unknown server error");
+    }
+
+    @Test
     void create_shouldThrowExternalServiceException_when5xxErrorOccurs() {
         stubFor(post(urlEqualTo("/api/v1/employee"))
                 .willReturn(aResponse().withStatus(503).withBody("Service unavailable")));
@@ -260,11 +287,46 @@ class EmployeeClientAdapterTest {
                 .hasMessageContaining("Server error");
     }
 
-    // Testable subclass to allow custom base URL
+    // Note: Retry behavior should be tested in integration tests with Spring context
+    // as @Retryable requires Spring AOP which isn't active in unit tests
+
+    // Timeout tests
+
+    @Test
+    void findAll_shouldThrowOnReadTimeout() {
+        // Create adapter with very short timeout for testing
+        EmployeeClientProperties shortTimeoutProps = new EmployeeClientProperties(
+                "http://localhost:" + wireMockServer.port() + "/api/v1/employee",
+                Duration.ofSeconds(5),
+                Duration.ofMillis(100), // Very short read timeout
+                new EmployeeClientProperties.RetryProperties(1, Duration.ofMillis(10), 1.0));
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        ExchangeStrategies strategies = ExchangeStrategies.builder()
+                .codecs(configurer -> {
+                    configurer.defaultCodecs().jackson2JsonEncoder(new Jackson2JsonEncoder(objectMapper));
+                    configurer.defaultCodecs().jackson2JsonDecoder(new Jackson2JsonDecoder(objectMapper));
+                })
+                .build();
+
+        EmployeeClientAdapter timeoutAdapter =
+                new TestableEmployeeClientAdapter(WebClient.builder().exchangeStrategies(strategies), shortTimeoutProps);
+
+        // Server responds with delay longer than timeout
+        stubFor(get(urlEqualTo("/api/v1/employee"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withBody("{\"data\": [], \"status\": \"success\"}")
+                        .withFixedDelay(500))); // 500ms delay, but timeout is 100ms
+
+        assertThatThrownBy(timeoutAdapter::findAll).isInstanceOf(RuntimeException.class);
+    }
+
+    // Testable subclass to allow custom base URL and properties
     private static class TestableEmployeeClientAdapter extends EmployeeClientAdapter {
 
-        TestableEmployeeClientAdapter(WebClient.Builder webClientBuilder, String baseUrl) {
-            super(webClientBuilder, baseUrl);
+        TestableEmployeeClientAdapter(WebClient.Builder webClientBuilder, EmployeeClientProperties properties) {
+            super(webClientBuilder, properties.baseUrl(), properties);
         }
     }
 }
