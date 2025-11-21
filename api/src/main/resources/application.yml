@@ -10,3 +10,6 @@ employee:
       max-attempts: 3
       delay: 500ms
       multiplier: 2.0
+
+api:
+  retry-after-seconds: 5
