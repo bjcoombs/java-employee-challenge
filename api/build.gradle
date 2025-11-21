@@ -3,6 +3,9 @@ plugins {
 }
 
 dependencies {
+    // JSON serialization
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+
     // WebClient for HTTP calls
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
 
