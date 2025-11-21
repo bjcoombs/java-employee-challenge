@@ -10,6 +10,9 @@ employee:
       max-attempts: 3
       delay: 500ms
       multiplier: 2.0
+  cache:
+    ttl-seconds: 30
+    max-size: 100
 
 api:
   retry-after-seconds: 5

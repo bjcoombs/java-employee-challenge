@@ -3,12 +3,15 @@ package com.reliaquest.api.domain;
 import com.reliaquest.api.domain.port.EmployeePort;
 import com.reliaquest.api.exception.EmployeeDeletionException;
 import com.reliaquest.api.exception.EmployeeNotFoundException;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -22,18 +25,19 @@ public class EmployeeService {
         this.employeePort = employeePort;
     }
 
+    @Cacheable(value = "employees", key = "'all'")
     public List<Employee> getAllEmployees() {
-        logger.debug("Fetching all employees correlationId={}", MDC.get("correlationId"));
-        return employeePort.findAll();
+        logger.debug("Cache MISS - Fetching all employees correlationId={}", MDC.get("correlationId"));
+        return Collections.unmodifiableList(employeePort.findAll());
     }
 
     public List<Employee> searchByName(String searchString) {
         logger.debug("Searching employees by name={} correlationId={}", searchString, MDC.get("correlationId"));
         if (searchString == null || searchString.isBlank()) {
-            return employeePort.findAll();
+            return getAllEmployees();
         }
         String lowerSearchString = searchString.toLowerCase();
-        return employeePort.findAll().stream()
+        return getAllEmployees().stream()
                 .filter(e -> e.name() != null && e.name().toLowerCase().contains(lowerSearchString))
                 .toList();
     }
@@ -49,7 +53,7 @@ public class EmployeeService {
 
     public int getHighestSalary() {
         logger.debug("Getting highest salary correlationId={}", MDC.get("correlationId"));
-        return employeePort.findAll().stream()
+        return getAllEmployees().stream()
                 .filter(e -> e.salary() != null)
                 .mapToInt(Employee::salary)
                 .max()
@@ -58,7 +62,7 @@ public class EmployeeService {
 
     public List<String> getTopTenHighestEarningNames() {
         logger.debug("Getting top ten highest earning names correlationId={}", MDC.get("correlationId"));
-        return employeePort.findAll().stream()
+        return getAllEmployees().stream()
                 .filter(e -> e.salary() != null)
                 .sorted(Comparator.comparingInt(Employee::salary).reversed())
                 .limit(10)
@@ -66,6 +70,7 @@ public class EmployeeService {
                 .toList();
     }
 
+    @CacheEvict(value = "employees", key = "'all'")
     public Employee create(CreateEmployeeRequest request) {
         logger.info("Creating employee name={} correlationId={}", request.name(), MDC.get("correlationId"));
         return employeePort.create(request);
@@ -83,6 +88,7 @@ public class EmployeeService {
      * @throws EmployeeNotFoundException if employee not found
      * @throws EmployeeDeletionException if deletion fails
      */
+    @CacheEvict(value = "employees", key = "'all'")
     public String deleteById(UUID id) {
         Employee employee = getById(id);
         logger.info("Deleting employee id={} name={} correlationId={}", id, employee.name(), MDC.get("correlationId"));
