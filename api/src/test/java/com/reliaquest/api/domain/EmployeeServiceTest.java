@@ -174,6 +174,18 @@ class EmployeeServiceTest {
     }
 
     @Test
+    void getHighestSalary_shouldIgnoreEmployeesWithNullSalary() {
+        var employees = List.of(
+                createEmployee("John Doe", 50000),
+                new Employee(UUID.randomUUID(), "Jane Doe", null, 30, "Manager", "jane@example.com"));
+        when(employeePort.findAll()).thenReturn(employees);
+
+        var result = employeeService.getHighestSalary();
+
+        assertThat(result).isEqualTo(50000);
+    }
+
+    @Test
     void getTopTenHighestEarningNames_shouldReturnTopTenByDescendingSalary() {
         var employees = List.of(
                 createEmployee("E1", 10000),
@@ -217,6 +229,20 @@ class EmployeeServiceTest {
         var result = employeeService.getTopTenHighestEarningNames();
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void getTopTenHighestEarningNames_shouldIgnoreEmployeesWithNullSalary() {
+        var employees = List.of(
+                createEmployee("John", 50000),
+                new Employee(UUID.randomUUID(), "Jane", null, 30, "Manager", "jane@example.com"),
+                createEmployee("Bob", 60000));
+        when(employeePort.findAll()).thenReturn(employees);
+
+        var result = employeeService.getTopTenHighestEarningNames();
+
+        assertThat(result).hasSize(2);
+        assertThat(result).containsExactly("Bob", "John");
     }
 
     @Test

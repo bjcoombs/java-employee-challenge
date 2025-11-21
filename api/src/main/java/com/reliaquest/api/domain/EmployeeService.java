@@ -49,12 +49,17 @@ public class EmployeeService {
 
     public int getHighestSalary() {
         logger.debug("Getting highest salary correlationId={}", MDC.get("correlationId"));
-        return employeePort.findAll().stream().mapToInt(Employee::salary).max().orElse(0);
+        return employeePort.findAll().stream()
+                .filter(e -> e.salary() != null)
+                .mapToInt(Employee::salary)
+                .max()
+                .orElse(0);
     }
 
     public List<String> getTopTenHighestEarningNames() {
         logger.debug("Getting top ten highest earning names correlationId={}", MDC.get("correlationId"));
         return employeePort.findAll().stream()
+                .filter(e -> e.salary() != null)
                 .sorted(Comparator.comparingInt(Employee::salary).reversed())
                 .limit(10)
                 .map(Employee::name)
