@@ -309,7 +309,7 @@ class EmployeeIntegrationTest {
                 .bodyValue(request)
                 .exchange()
                 .expectStatus()
-                .isOk()
+                .isCreated()
                 .expectBody(Employee.class)
                 .value(employee -> assertThat(employee.name()).isEqualTo("New Employee"));
     }
@@ -461,13 +461,13 @@ class EmployeeIntegrationTest {
                 .bodyValue(request)
                 .exchange()
                 .expectStatus()
-                .isOk();
+                .isCreated();
 
         verify(2, postRequestedFor(urlEqualTo("/api/v1/employee")));
     }
 
     @Test
-    void getAllEmployees_shouldReturnError_whenAllRetriesExhausted() {
+    void getAllEmployees_shouldReturn503WithRetryAfter_whenAllRetriesExhausted() {
         // All requests return 429
         stubFor(get(urlEqualTo("/api/v1/employee"))
                 .willReturn(aResponse().withStatus(429).withBody("Rate limited")));
@@ -477,7 +477,74 @@ class EmployeeIntegrationTest {
                 .uri("/api/v1/employee")
                 .exchange()
                 .expectStatus()
-                .is5xxServerError(); // Should return 503 Service Unavailable
+                .isEqualTo(503)
+                .expectHeader()
+                .exists("Retry-After");
+
+        // Verify all retry attempts were made (3 attempts)
+        verify(3, getRequestedFor(urlEqualTo("/api/v1/employee")));
+    }
+
+    @Test
+    void createEmployee_shouldReturn503WithRetryAfter_whenAllRetriesExhausted() {
+        // All requests return 429
+        stubFor(post(urlEqualTo("/api/v1/employee"))
+                .willReturn(aResponse().withStatus(429).withBody("Rate limited")));
+
+        var request = new CreateEmployeeRequestDto("New Employee", 55000, 25, "Developer");
+
+        webTestClient
+                .post()
+                .uri("/api/v1/employee")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus()
+                .isEqualTo(503)
+                .expectHeader()
+                .exists("Retry-After");
+
+        // Verify all retry attempts were made
+        verify(3, postRequestedFor(urlEqualTo("/api/v1/employee")));
+    }
+
+    @Test
+    void deleteEmployee_shouldReturn503WithRetryAfter_whenAllRetriesExhausted() {
+        UUID id = UUID.randomUUID();
+        String getAllResponse =
+                """
+                {
+                    "data": [
+                        {
+                            "id": "%s",
+                            "employee_name": "John Doe",
+                            "employee_salary": 50000,
+                            "employee_age": 30,
+                            "employee_title": "Developer",
+                            "employee_email": "john@test.com"
+                        }
+                    ],
+                    "status": "Successfully processed request."
+                }
+                """
+                        .formatted(id);
+
+        // GET succeeds but DELETE always returns 429
+        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(getAllResponse)));
+        stubFor(delete(urlEqualTo("/api/v1/employee"))
+                .willReturn(aResponse().withStatus(429).withBody("Rate limited")));
+
+        webTestClient
+                .delete()
+                .uri("/api/v1/employee/" + id)
+                .exchange()
+                .expectStatus()
+                .isEqualTo(503)
+                .expectHeader()
+                .exists("Retry-After");
+
+        // Verify all retry attempts were made for delete
+        verify(3, deleteRequestedFor(urlEqualTo("/api/v1/employee")));
     }
 
     // Error handling tests
@@ -487,6 +554,49 @@ class EmployeeIntegrationTest {
                 .willReturn(aResponse().withStatus(500).withBody("Internal server error")));
 
         webTestClient.get().uri("/api/v1/employee").exchange().expectStatus().is5xxServerError();
+    }
+
+    // Edge case tests
+    @Test
+    void getEmployeeById_shouldReturn400_whenInvalidUuidFormat() {
+        webTestClient
+                .get()
+                .uri("/api/v1/employee/not-a-valid-uuid")
+                .exchange()
+                .expectStatus()
+                .isBadRequest();
+    }
+
+    @Test
+    void searchByName_shouldReturnEmptyList_whenNoMatch() {
+        String mockResponse =
+                """
+                {
+                    "data": [
+                        {
+                            "id": "%s",
+                            "employee_name": "John Doe",
+                            "employee_salary": 50000,
+                            "employee_age": 30,
+                            "employee_title": "Developer",
+                            "employee_email": "john@test.com"
+                        }
+                    ],
+                    "status": "Successfully processed request."
+                }
+                """
+                        .formatted(UUID.randomUUID());
+
+        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
+
+        webTestClient
+                .get()
+                .uri("/api/v1/employee/search/nonexistent")
+                .exchange()
+                .expectStatus()
+                .isOk()
+                .expectBodyList(Employee.class)
+                .hasSize(0);
     }
 
     // DTO for request body
