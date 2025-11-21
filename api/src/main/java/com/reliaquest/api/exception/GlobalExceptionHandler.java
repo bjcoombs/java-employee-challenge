@@ -2,6 +2,7 @@ package com.reliaquest.api.exception;
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -37,10 +38,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
-        String message = ex.getBindingResult().getFieldErrors().stream()
-                .map(e -> e.getField() + ": " + e.getDefaultMessage())
-                .findFirst()
-                .orElse("Validation failed");
+        var fieldErrors = ex.getBindingResult().getFieldErrors();
+        String message = fieldErrors.isEmpty()
+                ? "Validation failed"
+                : fieldErrors.stream()
+                        .map(e -> e.getField() + ": " + e.getDefaultMessage())
+                        .collect(Collectors.joining("; "));
         logger.warn("Validation failed correlationId={}: {}", MDC.get("correlationId"), message);
         return ResponseEntity.badRequest().body(errorBody(400, "Bad Request", message));
     }

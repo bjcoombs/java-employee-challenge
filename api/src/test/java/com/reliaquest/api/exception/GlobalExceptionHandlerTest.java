@@ -59,9 +59,10 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void handleValidation_shouldReturn400WithFieldError() {
+    void handleValidation_shouldReturn400WithAllFieldErrors() {
         var bindingResult = new BeanPropertyBindingResult(new Object(), "request");
         bindingResult.addError(new FieldError("request", "name", "must not be blank"));
+        bindingResult.addError(new FieldError("request", "salary", "must be positive"));
         var exception = new MethodArgumentNotValidException(null, bindingResult);
 
         ResponseEntity<Map<String, Object>> response = handler.handleValidation(exception);
@@ -69,7 +70,22 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody()).containsEntry("status", 400);
         assertThat(response.getBody()).containsEntry("error", "Bad Request");
-        assertThat(response.getBody()).containsEntry("message", "name: must not be blank");
+        assertThat(response.getBody().get("message").toString())
+                .contains("name: must not be blank")
+                .contains("salary: must be positive");
+    }
+
+    @Test
+    void handleValidation_shouldReturn400WithDefaultMessageWhenNoFieldErrors() {
+        var bindingResult = new BeanPropertyBindingResult(new Object(), "request");
+        var exception = new MethodArgumentNotValidException(null, bindingResult);
+
+        ResponseEntity<Map<String, Object>> response = handler.handleValidation(exception);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).containsEntry("status", 400);
+        assertThat(response.getBody()).containsEntry("error", "Bad Request");
+        assertThat(response.getBody()).containsEntry("message", "Validation failed");
     }
 
     @Test
