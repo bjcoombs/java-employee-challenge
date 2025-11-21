@@ -1,0 +1,69 @@
+### Get all employees
+GET http://localhost:8111/api/v1/employee
+Accept: application/json
+
+###
+
+### Search employees by name
+GET http://localhost:8111/api/v1/employee/search/John
+Accept: application/json
+
+###
+
+### Get employee by ID (replace with valid UUID)
+GET http://localhost:8111/api/v1/employee/123e4567-e89b-12d3-a456-426614174000
+Accept: application/json
+
+###
+
+### Get highest salary
+GET http://localhost:8111/api/v1/employee/highestSalary
+Accept: application/json
+
+###
+
+### Get top 10 highest earning employee names
+GET http://localhost:8111/api/v1/employee/topTenHighestEarningEmployeeNames
+Accept: application/json
+
+###
+
+### Create new employee
+POST http://localhost:8111/api/v1/employee
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Test Employee",
+  "salary": 75000,
+  "age": 30,
+  "title": "Software Engineer"
+}
+
+###
+
+### Create employee with validation error (invalid age)
+POST http://localhost:8111/api/v1/employee
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Invalid Employee",
+  "salary": 50000,
+  "age": 10,
+  "title": "Developer"
+}
+
+###
+
+### Delete employee by ID (replace with valid UUID)
+DELETE http://localhost:8111/api/v1/employee/123e4567-e89b-12d3-a456-426614174000
+Accept: application/json
+
+###
+
+### Test invalid UUID format
+GET http://localhost:8111/api/v1/employee/invalid-uuid
+Accept: application/json
+
+###
