@@ -17,7 +17,7 @@ class GlobalExceptionHandlerTest {
 
     @BeforeEach
     void setUp() {
-        handler = new GlobalExceptionHandler();
+        handler = new GlobalExceptionHandler(5);
     }
 
     @Test
@@ -86,7 +86,7 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void handleExternalService_shouldReturn502WithMessage() {
+    void handleExternalService_shouldReturn502WithStatusCodeAndMessage() {
         var exception = new ExternalServiceException("Connection refused", 500);
 
         ResponseEntity<ErrorResponse> response = handler.handleExternalService(exception);
@@ -94,7 +94,7 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
         assertThat(response.getBody().status()).isEqualTo(502);
         assertThat(response.getBody().error()).isEqualTo("Bad Gateway");
-        assertThat(response.getBody().message()).contains("Connection refused");
+        assertThat(response.getBody().message()).contains("status 500").contains("Connection refused");
     }
 
     @Test

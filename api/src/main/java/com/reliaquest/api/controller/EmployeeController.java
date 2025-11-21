@@ -8,9 +8,8 @@ import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -33,15 +32,15 @@ public class EmployeeController implements IEmployeeController<Employee, CreateE
     }
 
     @Override
-    public ResponseEntity<List<Employee>> getEmployeesByNameSearch(@PathVariable String searchString) {
+    public ResponseEntity<List<Employee>> getEmployeesByNameSearch(String searchString) {
         logger.info("Processing request: GET /api/v1/employee/search/{}", searchString);
         return ResponseEntity.ok(employeeService.searchByName(searchString));
     }
 
     @Override
-    public ResponseEntity<Employee> getEmployeeById(@PathVariable String id) {
+    public ResponseEntity<Employee> getEmployeeById(String id) {
         logger.info("Processing request: GET /api/v1/employee/{}", id);
-        UUID uuid = UUID.fromString(id);
+        UUID uuid = parseEmployeeId(id);
         return ResponseEntity.ok(employeeService.getById(uuid));
     }
 
@@ -58,16 +57,24 @@ public class EmployeeController implements IEmployeeController<Employee, CreateE
     }
 
     @Override
-    public ResponseEntity<Employee> createEmployee(@Valid @RequestBody CreateEmployeeRequest employeeInput) {
+    public ResponseEntity<Employee> createEmployee(@Valid CreateEmployeeRequest employeeInput) {
         logger.info("Processing request: POST /api/v1/employee");
-        return ResponseEntity.ok(employeeService.create(employeeInput));
+        return ResponseEntity.status(HttpStatus.CREATED).body(employeeService.create(employeeInput));
     }
 
     @Override
-    public ResponseEntity<String> deleteEmployeeById(@PathVariable String id) {
+    public ResponseEntity<String> deleteEmployeeById(String id) {
         logger.info("Processing request: DELETE /api/v1/employee/{}", id);
-        UUID uuid = UUID.fromString(id);
+        UUID uuid = parseEmployeeId(id);
         String deletedName = employeeService.deleteById(uuid);
         return ResponseEntity.ok(deletedName);
+    }
+
+    private UUID parseEmployeeId(String id) {
+        try {
+            return UUID.fromString(id);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid employee ID format: " + id, e);
+        }
     }
 }
