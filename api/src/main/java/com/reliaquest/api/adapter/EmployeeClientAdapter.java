@@ -14,6 +14,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
@@ -31,8 +32,9 @@ public class EmployeeClientAdapter implements EmployeePort {
 
     private static final Logger logger = LoggerFactory.getLogger(EmployeeClientAdapter.class);
 
-    private final WebClient webClient;
+    private WebClient webClient;
 
+    @Autowired
     public EmployeeClientAdapter(WebClient.Builder webClientBuilder, EmployeeClientProperties properties) {
         HttpClient httpClient = HttpClient.create()
                 .responseTimeout(properties.readTimeout())
@@ -46,9 +48,10 @@ public class EmployeeClientAdapter implements EmployeePort {
                 .build();
     }
 
-    // Package-private constructor for CGLIB proxy required by @Retryable
-    EmployeeClientAdapter() {
-        this.webClient = null;
+    // Protected no-arg constructor for CGLIB proxy (required by @Retryable)
+    // This should not be used for actual bean instantiation
+    protected EmployeeClientAdapter() {
+        // Intentionally empty - CGLIB proxy will delegate to actual target bean
     }
 
     // Protected constructor for testing with custom base URL

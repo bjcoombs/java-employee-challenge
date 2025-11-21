@@ -44,7 +44,7 @@ class EmployeeClientAdapterTest {
                 "http://localhost:" + wireMockServer.port() + "/api/v1/employee",
                 Duration.ofSeconds(5),
                 Duration.ofSeconds(10),
-                new EmployeeClientProperties.RetryProperties(3, Duration.ofMillis(100), 2.0));
+                new EmployeeClientProperties.RetryProperties(3, 100, 2.0));
 
         // Configure Jackson 3 codec for @JsonNaming support
         JsonMapper jsonMapper = JsonMapper.builder().build();
@@ -298,7 +298,7 @@ class EmployeeClientAdapterTest {
                 "http://localhost:" + wireMockServer.port() + "/api/v1/employee",
                 Duration.ofSeconds(5),
                 Duration.ofMillis(100), // Very short read timeout
-                new EmployeeClientProperties.RetryProperties(1, Duration.ofMillis(10), 1.0));
+                new EmployeeClientProperties.RetryProperties(1, 10, 1.0));
 
         // Configure Jackson 3 codec for @JsonNaming support
         JsonMapper jsonMapper = JsonMapper.builder().build();

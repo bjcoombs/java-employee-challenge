@@ -7,7 +7,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.retry.annotation.EnableRetry;
 
 @SpringBootApplication
-@EnableRetry
+@EnableRetry(proxyTargetClass = true)
 @EnableConfigurationProperties(EmployeeClientProperties.class)
 public class ApiApplication {
 
