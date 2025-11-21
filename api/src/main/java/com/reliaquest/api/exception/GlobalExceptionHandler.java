@@ -4,6 +4,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -14,7 +15,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class GlobalExceptionHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
-    private static final String RETRY_AFTER_SECONDS = "5";
+
+    private final int retryAfterSeconds;
+
+    public GlobalExceptionHandler(@Value("${api.retry-after-seconds:5}") int retryAfterSeconds) {
+        this.retryAfterSeconds = retryAfterSeconds;
+    }
 
     @ExceptionHandler(EmployeeNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(EmployeeNotFoundException ex) {
@@ -63,7 +69,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleServiceUnavailable(ServiceUnavailableException ex) {
         logger.error("Service unavailable correlationId={}: {}", getCorrelationId(), ex.getMessage());
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                .header("Retry-After", RETRY_AFTER_SECONDS)
+                .header("Retry-After", String.valueOf(retryAfterSeconds))
                 .body(ErrorResponse.of(503, "Service Unavailable", ex.getMessage()));
     }
 
@@ -71,7 +77,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleTooManyRequests(TooManyRequestsException ex) {
         logger.warn("Too many requests correlationId={}: {}", getCorrelationId(), ex.getMessage());
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                .header("Retry-After", RETRY_AFTER_SECONDS)
+                .header("Retry-After", String.valueOf(retryAfterSeconds))
                 .body(ErrorResponse.of(429, "Too Many Requests", ex.getMessage()));
     }
 
