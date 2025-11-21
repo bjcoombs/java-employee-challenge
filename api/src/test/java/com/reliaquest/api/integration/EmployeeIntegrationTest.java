@@ -7,6 +7,7 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.stubbing.Scenario;
+import com.reliaquest.api.domain.CreateEmployeeRequest;
 import com.reliaquest.api.domain.Employee;
 import java.time.Duration;
 import java.util.List;
@@ -19,6 +20,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -33,9 +36,16 @@ class EmployeeIntegrationTest {
 
     @BeforeAll
     static void startWireMock() {
-        wireMockServer = new WireMockServer(WireMockConfiguration.options().port(8112));
+        wireMockServer = new WireMockServer(WireMockConfiguration.options().dynamicPort());
         wireMockServer.start();
-        WireMock.configureFor("localhost", 8112);
+        WireMock.configureFor("localhost", wireMockServer.port());
+    }
+
+    @DynamicPropertySource
+    static void configureProperties(DynamicPropertyRegistry registry) {
+        registry.add(
+                "employee.client.base-url",
+                () -> "http://localhost:" + wireMockServer.port() + "/api/v1/employee");
     }
 
     @BeforeEach
@@ -142,6 +152,41 @@ class EmployeeIntegrationTest {
                 .isOk()
                 .expectBodyList(Employee.class)
                 .hasSize(1);
+    }
+
+    @Test
+    void searchByName_shouldBeCaseInsensitive() {
+        UUID id = UUID.randomUUID();
+        String mockResponse =
+                """
+                {
+                    "data": [
+                        {
+                            "id": "%s",
+                            "employee_name": "John Doe",
+                            "employee_salary": 50000,
+                            "employee_age": 30,
+                            "employee_title": "Developer",
+                            "employee_email": "john@test.com"
+                        }
+                    ],
+                    "status": "Successfully processed request."
+                }
+                """
+                        .formatted(id);
+
+        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
+
+        // Search with uppercase should find lowercase match
+        webTestClient
+                .get()
+                .uri("/api/v1/employee/search/JOHN")
+                .exchange()
+                .expectStatus()
+                .isOk()
+                .expectBodyList(Employee.class)
+                .hasSize(1)
+                .value(employees -> assertThat(employees.getFirst().name()).isEqualTo("John Doe"));
     }
 
     // GET /api/v1/employee/{id} - Get employee by ID
@@ -274,7 +319,8 @@ class EmployeeIntegrationTest {
                 .isOk()
                 .expectBody(new ParameterizedTypeReference<List<String>>() {})
                 .value(names -> {
-                    assertThat(names).contains("Jane Smith", "John Doe");
+                    // Jane Smith (80k) should be first, John Doe (50k) second
+                    assertThat(names).containsExactly("Jane Smith", "John Doe");
                 });
     }
 
@@ -300,7 +346,7 @@ class EmployeeIntegrationTest {
 
         stubFor(post(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
 
-        var request = new CreateEmployeeRequestDto("New Employee", 55000, 25, "Developer");
+        var request = new CreateEmployeeRequest("New Employee", 55000, 25, "Developer");
 
         webTestClient
                 .post()
@@ -316,7 +362,7 @@ class EmployeeIntegrationTest {
 
     @Test
     void createEmployee_shouldReturn400_whenInvalidInput() {
-        var request = new CreateEmployeeRequestDto("", -1, 10, ""); // Invalid data
+        var request = new CreateEmployeeRequest("", -1, 10, ""); // Invalid data
 
         webTestClient
                 .post()
@@ -452,7 +498,7 @@ class EmployeeIntegrationTest {
                 .whenScenarioStateIs("retry-once")
                 .willReturn(okJson(successResponse)));
 
-        var request = new CreateEmployeeRequestDto("New Employee", 55000, 25, "Developer");
+        var request = new CreateEmployeeRequest("New Employee", 55000, 25, "Developer");
 
         webTestClient
                 .post()
@@ -491,7 +537,7 @@ class EmployeeIntegrationTest {
         stubFor(post(urlEqualTo("/api/v1/employee"))
                 .willReturn(aResponse().withStatus(429).withBody("Rate limited")));
 
-        var request = new CreateEmployeeRequestDto("New Employee", 55000, 25, "Developer");
+        var request = new CreateEmployeeRequest("New Employee", 55000, 25, "Developer");
 
         webTestClient
                 .post()
@@ -598,7 +644,4 @@ class EmployeeIntegrationTest {
                 .expectBodyList(Employee.class)
                 .hasSize(0);
     }
-
-    // DTO for request body
-    record CreateEmployeeRequestDto(String name, Integer salary, Integer age, String title) {}
 }

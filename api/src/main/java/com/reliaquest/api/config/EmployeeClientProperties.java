@@ -10,6 +10,13 @@ public record EmployeeClientProperties(
         Duration readTimeout,
         RetryProperties retry) {
 
+    /**
+     * Retry configuration for external service calls.
+     *
+     * @param maxAttempts Maximum number of retry attempts
+     * @param delay Initial delay between retries in milliseconds
+     * @param multiplier Exponential backoff multiplier applied to delay
+     */
     public record RetryProperties(
             int maxAttempts,
             long delay,
