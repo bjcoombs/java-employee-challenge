@@ -50,7 +50,7 @@ public class EmployeeClientAdapter implements EmployeePort {
 
     // Required for CGLIB proxy; Objenesis bypasses this constructor at runtime
     protected EmployeeClientAdapter() {
-        throw new UnsupportedOperationException("CGLIB proxy constructor - should not be called directly");
+        this.webClient = null;
     }
 
     // Protected constructor for testing with custom base URL

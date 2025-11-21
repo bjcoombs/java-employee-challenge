@@ -708,4 +708,41 @@ class EmployeeIntegrationTest {
                 .expectBodyList(Employee.class)
                 .hasSize(0);
     }
+
+    // Correlation ID propagation tests
+    @Test
+    void request_shouldReturnProvidedCorrelationId() throws Exception {
+        String mockResponse = loadFixture("employee-empty-list.json");
+        String correlationId = "test-correlation-id-12345";
+
+        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
+
+        webTestClient
+                .get()
+                .uri("/api/v1/employee")
+                .header("X-Correlation-ID", correlationId)
+                .exchange()
+                .expectStatus()
+                .isOk()
+                .expectHeader()
+                .valueEquals("X-Correlation-ID", correlationId);
+    }
+
+    @Test
+    void request_shouldGenerateCorrelationId_whenNotProvided() throws Exception {
+        String mockResponse = loadFixture("employee-empty-list.json");
+
+        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
+
+        webTestClient
+                .get()
+                .uri("/api/v1/employee")
+                .exchange()
+                .expectStatus()
+                .isOk()
+                .expectHeader()
+                .exists("X-Correlation-ID")
+                .expectHeader()
+                .value("X-Correlation-ID", value -> assertThat(value).isNotBlank());
+    }
 }
