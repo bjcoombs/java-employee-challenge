@@ -1,6 +1,7 @@
 package com.reliaquest.api.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -8,6 +9,8 @@ import static org.mockito.Mockito.when;
 import com.reliaquest.api.domain.CreateEmployeeRequest;
 import com.reliaquest.api.domain.Employee;
 import com.reliaquest.api.domain.EmployeeService;
+import com.reliaquest.api.exception.EmployeeNotFoundException;
+import com.reliaquest.api.exception.TooManyRequestsException;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -125,5 +128,40 @@ class EmployeeControllerTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isEqualTo("John Doe");
+    }
+
+    @Test
+    void getEmployeeById_invalidUuid_throwsIllegalArgumentException() {
+        assertThatThrownBy(() -> controller.getEmployeeById("not-a-uuid"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void deleteEmployeeById_invalidUuid_throwsIllegalArgumentException() {
+        assertThatThrownBy(() -> controller.deleteEmployeeById("invalid-uuid"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void getEmployeeById_notFound_propagatesException() {
+        when(employeeService.getById(EMPLOYEE_ID)).thenThrow(new EmployeeNotFoundException(EMPLOYEE_ID));
+
+        assertThatThrownBy(() -> controller.getEmployeeById(EMPLOYEE_ID.toString()))
+                .isInstanceOf(EmployeeNotFoundException.class);
+    }
+
+    @Test
+    void getAllEmployees_serviceThrowsException_propagates() {
+        when(employeeService.getAllEmployees()).thenThrow(new TooManyRequestsException("Rate limited"));
+
+        assertThatThrownBy(() -> controller.getAllEmployees()).isInstanceOf(TooManyRequestsException.class);
+    }
+
+    @Test
+    void getEmployeesByNameSearch_serviceThrowsException_propagates() {
+        when(employeeService.searchByName(any())).thenThrow(new TooManyRequestsException("Rate limited"));
+
+        assertThatThrownBy(() -> controller.getEmployeesByNameSearch("test"))
+                .isInstanceOf(TooManyRequestsException.class);
     }
 }
