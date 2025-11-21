@@ -4,7 +4,6 @@ import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.reliaquest.api.config.EmployeeClientProperties;
@@ -22,10 +21,11 @@ import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.codec.json.Jackson2JsonDecoder;
-import org.springframework.http.codec.json.Jackson2JsonEncoder;
+import org.springframework.http.codec.json.JacksonJsonDecoder;
+import org.springframework.http.codec.json.JacksonJsonEncoder;
 import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
+import tools.jackson.databind.json.JsonMapper;
 
 class EmployeeClientAdapterTest {
 
@@ -39,17 +39,6 @@ class EmployeeClientAdapterTest {
         wireMockServer.start();
         configureFor("localhost", wireMockServer.port());
 
-        // Configure WebClient.Builder with Jackson codec for proper annotation support
-        ObjectMapper objectMapper = new ObjectMapper();
-        ExchangeStrategies strategies = ExchangeStrategies.builder()
-                .codecs(configurer -> {
-                    configurer.defaultCodecs().jackson2JsonEncoder(new Jackson2JsonEncoder(objectMapper));
-                    configurer.defaultCodecs().jackson2JsonDecoder(new Jackson2JsonDecoder(objectMapper));
-                })
-                .build();
-
-        WebClient.Builder builder = WebClient.builder().exchangeStrategies(strategies);
-
         // Create test properties
         properties = new EmployeeClientProperties(
                 "http://localhost:" + wireMockServer.port() + "/api/v1/employee",
@@ -57,8 +46,18 @@ class EmployeeClientAdapterTest {
                 Duration.ofSeconds(10),
                 new EmployeeClientProperties.RetryProperties(3, Duration.ofMillis(100), 2.0));
 
+        // Configure Jackson 3 codec for @JsonNaming support
+        JsonMapper jsonMapper = JsonMapper.builder().build();
+        ExchangeStrategies strategies = ExchangeStrategies.builder()
+                .codecs(configurer -> {
+                    configurer.defaultCodecs().jacksonJsonEncoder(new JacksonJsonEncoder(jsonMapper));
+                    configurer.defaultCodecs().jacksonJsonDecoder(new JacksonJsonDecoder(jsonMapper));
+                })
+                .build();
+
         // Create adapter with test URL pointing to WireMock
-        adapter = new TestableEmployeeClientAdapter(builder, properties);
+        adapter = new TestableEmployeeClientAdapter(
+                WebClient.builder().exchangeStrategies(strategies), properties);
     }
 
     @AfterEach
@@ -301,16 +300,17 @@ class EmployeeClientAdapterTest {
                 Duration.ofMillis(100), // Very short read timeout
                 new EmployeeClientProperties.RetryProperties(1, Duration.ofMillis(10), 1.0));
 
-        ObjectMapper objectMapper = new ObjectMapper();
+        // Configure Jackson 3 codec for @JsonNaming support
+        JsonMapper jsonMapper = JsonMapper.builder().build();
         ExchangeStrategies strategies = ExchangeStrategies.builder()
                 .codecs(configurer -> {
-                    configurer.defaultCodecs().jackson2JsonEncoder(new Jackson2JsonEncoder(objectMapper));
-                    configurer.defaultCodecs().jackson2JsonDecoder(new Jackson2JsonDecoder(objectMapper));
+                    configurer.defaultCodecs().jacksonJsonEncoder(new JacksonJsonEncoder(jsonMapper));
+                    configurer.defaultCodecs().jacksonJsonDecoder(new JacksonJsonDecoder(jsonMapper));
                 })
                 .build();
 
-        EmployeeClientAdapter timeoutAdapter =
-                new TestableEmployeeClientAdapter(WebClient.builder().exchangeStrategies(strategies), shortTimeoutProps);
+        EmployeeClientAdapter timeoutAdapter = new TestableEmployeeClientAdapter(
+                WebClient.builder().exchangeStrategies(strategies), shortTimeoutProps);
 
         // Server responds with delay longer than timeout
         stubFor(get(urlEqualTo("/api/v1/employee"))
@@ -320,6 +320,17 @@ class EmployeeClientAdapterTest {
                         .withFixedDelay(500))); // 500ms delay, but timeout is 100ms
 
         assertThatThrownBy(timeoutAdapter::findAll).isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    void findById_shouldReturnEmpty_whenFindAllReturnsEmptyList() throws Exception {
+        String json = loadFixture("employee-null-data.json");
+
+        stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(json)));
+
+        Optional<Employee> result = adapter.findById(UUID.randomUUID());
+
+        assertThat(result).isEmpty();
     }
 
     // Testable subclass to allow custom base URL and properties

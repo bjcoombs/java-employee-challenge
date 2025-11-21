@@ -30,11 +30,8 @@ public class EmployeeClientAdapter implements EmployeePort {
     private static final Logger logger = LoggerFactory.getLogger(EmployeeClientAdapter.class);
 
     private final WebClient webClient;
-    private final EmployeeClientProperties properties;
 
     public EmployeeClientAdapter(WebClient.Builder webClientBuilder, EmployeeClientProperties properties) {
-        this.properties = properties;
-
         HttpClient httpClient = HttpClient.create()
                 .responseTimeout(properties.readTimeout())
                 .option(
@@ -50,13 +47,10 @@ public class EmployeeClientAdapter implements EmployeePort {
     // Package-private constructor for CGLIB proxy required by @Retryable
     EmployeeClientAdapter() {
         this.webClient = null;
-        this.properties = null;
     }
 
     // Protected constructor for testing with custom base URL
     protected EmployeeClientAdapter(WebClient.Builder webClientBuilder, String baseUrl, EmployeeClientProperties properties) {
-        this.properties = properties;
-
         HttpClient httpClient = HttpClient.create()
                 .responseTimeout(properties.readTimeout())
                 .option(
@@ -72,10 +66,10 @@ public class EmployeeClientAdapter implements EmployeePort {
     @Override
     @Retryable(
             retryFor = TooManyRequestsException.class,
-            maxAttempts = 3,
+            maxAttemptsExpression = "#{${employee.client.retry.max-attempts:3}}",
             backoff = @Backoff(delayExpression = "#{${employee.client.retry.delay:500}}", multiplier = 2))
     public List<Employee> findAll() {
-        String correlationId = MDC.get("correlationId");
+        String correlationId = getCorrelationId();
         logger.info("Fetching all employees correlationId={}", correlationId);
 
         ApiResponse<List<Employee>> response = webClient
@@ -91,7 +85,7 @@ public class EmployeeClientAdapter implements EmployeePort {
 
     @Override
     public Optional<Employee> findById(UUID id) {
-        String correlationId = MDC.get("correlationId");
+        String correlationId = getCorrelationId();
         logger.info("Fetching employee by id={} correlationId={}", id, correlationId);
 
         // Mock server doesn't provide a GET by ID endpoint, so we fetch all and filter
@@ -104,10 +98,10 @@ public class EmployeeClientAdapter implements EmployeePort {
     @Override
     @Retryable(
             retryFor = TooManyRequestsException.class,
-            maxAttempts = 3,
+            maxAttemptsExpression = "#{${employee.client.retry.max-attempts:3}}",
             backoff = @Backoff(delayExpression = "#{${employee.client.retry.delay:500}}", multiplier = 2))
     public Employee create(CreateEmployeeRequest request) {
-        String correlationId = MDC.get("correlationId");
+        String correlationId = getCorrelationId();
         logger.info("Creating employee name={} correlationId={}", request.name(), correlationId);
 
         ApiResponse<Employee> response = webClient
@@ -129,10 +123,10 @@ public class EmployeeClientAdapter implements EmployeePort {
     @Override
     @Retryable(
             retryFor = TooManyRequestsException.class,
-            maxAttempts = 3,
+            maxAttemptsExpression = "#{${employee.client.retry.max-attempts:3}}",
             backoff = @Backoff(delayExpression = "#{${employee.client.retry.delay:500}}", multiplier = 2))
     public boolean deleteByName(String name) {
-        String correlationId = MDC.get("correlationId");
+        String correlationId = getCorrelationId();
         logger.info("Deleting employee name={} correlationId={}", name, correlationId);
 
         // Mock server expects {"name": "..."} in request body for DELETE
@@ -150,10 +144,15 @@ public class EmployeeClientAdapter implements EmployeePort {
         return response != null && Boolean.TRUE.equals(response.data());
     }
 
+    private String getCorrelationId() {
+        String correlationId = MDC.get("correlationId");
+        return correlationId != null ? correlationId : "unknown";
+    }
+
     private Mono<? extends Throwable> handle4xxError(ClientResponse response, String operation) {
         int statusCode = response.statusCode().value();
         if (statusCode == 429) {
-            logger.warn("Rate limited while {} correlationId={}, will retry", operation, MDC.get("correlationId"));
+            logger.warn("Rate limited while {} correlationId={}, will retry", operation, getCorrelationId());
             return response
                     .bodyToMono(String.class)
                     .defaultIfEmpty("Too many requests")
@@ -162,15 +161,15 @@ public class EmployeeClientAdapter implements EmployeePort {
         return response
                 .bodyToMono(String.class)
                 .defaultIfEmpty("Unknown client error")
-                .map(body -> new ExternalServiceException("Client error: " + body, statusCode));
+                .map(body -> new ExternalServiceException("Client error while " + operation + ": " + body, statusCode));
     }
 
     private Mono<? extends Throwable> handle5xxError(ClientResponse response, String operation) {
         int statusCode = response.statusCode().value();
-        logger.error("Server error {} while {} correlationId={}", statusCode, operation, MDC.get("correlationId"));
+        logger.error("Server error {} while {} correlationId={}", statusCode, operation, getCorrelationId());
         return response
                 .bodyToMono(String.class)
                 .defaultIfEmpty("Unknown server error")
-                .map(body -> new ExternalServiceException("Server error: " + body, statusCode));
+                .map(body -> new ExternalServiceException("Server error while " + operation + ": " + body, statusCode));
     }
 }
