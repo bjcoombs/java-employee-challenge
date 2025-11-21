@@ -133,13 +133,15 @@ class EmployeeControllerTest {
     @Test
     void getEmployeeById_invalidUuid_throwsIllegalArgumentException() {
         assertThatThrownBy(() -> controller.getEmployeeById("not-a-uuid"))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Invalid employee ID format: not-a-uuid");
     }
 
     @Test
     void deleteEmployeeById_invalidUuid_throwsIllegalArgumentException() {
         assertThatThrownBy(() -> controller.deleteEmployeeById("invalid-uuid"))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Invalid employee ID format: invalid-uuid");
     }
 
     @Test
