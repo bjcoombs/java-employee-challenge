@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.retry.annotation.EnableRetry;
 
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "com.reliaquest.api")
 @EnableRetry
 @EnableConfigurationProperties(EmployeeClientProperties.class)
 public class ApiApplication {
