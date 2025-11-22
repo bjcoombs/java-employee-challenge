@@ -1,0 +1,13 @@
+# Test configuration - fast retry settings for quick test execution
+# Production uses longer delays to match mock server's 30-90s rate limit backoff
+
+employee:
+  client:
+    base-url: http://localhost:8112/api/v1/employee
+    retry:
+      max-attempts: 3
+      delay: 100  # 100ms for fast tests
+      multiplier: 2.0
+  cache:
+    ttl-seconds: 30
+    max-size: 100

@@ -7,8 +7,10 @@ employee:
     connect-timeout: 5s
     read-timeout: 10s
     retry:
-      max-attempts: 3
-      delay: 500  # milliseconds
+      # Mock server rate-limits for 30-90 seconds, so we need longer backoff
+      # With 5 attempts: 10s, 20s, 40s, 80s = covers up to 150s total wait
+      max-attempts: 5
+      delay: 10000  # 10 seconds initial delay
       multiplier: 2.0
   cache:
     ttl-seconds: 30
