@@ -10,6 +10,7 @@ import com.reliaquest.api.config.EmployeeClientProperties;
 import com.reliaquest.api.domain.CreateEmployeeRequest;
 import com.reliaquest.api.domain.Employee;
 import com.reliaquest.api.exception.ExternalServiceException;
+import com.reliaquest.api.exception.RetryableServerException;
 import com.reliaquest.api.exception.TooManyRequestsException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -246,12 +247,12 @@ class EmployeeClientAdapterTest {
     // 5xx error handling tests
 
     @Test
-    void findAll_shouldThrowExternalServiceException_when5xxErrorOccurs() {
+    void findAll_shouldThrowRetryableServerException_when5xxErrorOccurs() {
         stubFor(get(urlEqualTo("/api/v1/employee"))
                 .willReturn(aResponse().withStatus(500).withBody("Internal server error")));
 
         assertThatThrownBy(() -> adapter.findAll())
-                .isInstanceOf(ExternalServiceException.class)
+                .isInstanceOf(RetryableServerException.class)
                 .hasMessageContaining("Server error");
     }
 
@@ -260,29 +261,29 @@ class EmployeeClientAdapterTest {
         stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(aResponse().withStatus(503)));
 
         assertThatThrownBy(() -> adapter.findAll())
-                .isInstanceOf(ExternalServiceException.class)
+                .isInstanceOf(RetryableServerException.class)
                 .hasMessageContaining("Unknown server error");
     }
 
     @Test
-    void create_shouldThrowExternalServiceException_when5xxErrorOccurs() {
+    void create_shouldThrowRetryableServerException_when5xxErrorOccurs() {
         stubFor(post(urlEqualTo("/api/v1/employee"))
                 .willReturn(aResponse().withStatus(503).withBody("Service unavailable")));
 
         CreateEmployeeRequest request = new CreateEmployeeRequest("New Employee", 55000, 25, "Developer");
 
         assertThatThrownBy(() -> adapter.create(request))
-                .isInstanceOf(ExternalServiceException.class)
+                .isInstanceOf(RetryableServerException.class)
                 .hasMessageContaining("Server error");
     }
 
     @Test
-    void deleteByName_shouldThrowExternalServiceException_when5xxErrorOccurs() {
+    void deleteByName_shouldThrowRetryableServerException_when5xxErrorOccurs() {
         stubFor(delete(urlEqualTo("/api/v1/employee"))
                 .willReturn(aResponse().withStatus(502).withBody("Bad gateway")));
 
         assertThatThrownBy(() -> adapter.deleteByName("John Doe"))
-                .isInstanceOf(ExternalServiceException.class)
+                .isInstanceOf(RetryableServerException.class)
                 .hasMessageContaining("Server error");
     }
 

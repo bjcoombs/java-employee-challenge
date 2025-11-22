@@ -4,15 +4,35 @@ This document consolidates unimplemented suggestions from PR code reviews into a
 
 > **Last Updated**: Generated from analysis of PRs #5, #6, #7, #8, #9, and #11
 
+## Table of Contents
+
+- [Summary](#summary)
+- [Critical Priority](#critical-priority)
+  - [1. Circuit Breaker Pattern](#1-circuit-breaker-pattern)
+  - [2. Add 5xx Error Retry Support](#2-add-5xx-error-retry-support) ✅
+- [High Priority](#high-priority)
+  - [Testing Gaps](#testing-gaps)
+  - [Architecture](#architecture)
+- [Medium Priority](#medium-priority)
+  - [Observability & Monitoring](#observability--monitoring)
+  - [Testing Enhancements](#testing-enhancements)
+  - [Code Quality](#code-quality)
+  - [Documentation & DX](#documentation--dx)
+- [Low Priority / Future Enhancements](#low-priority--future-enhancements)
+- [Implementation Notes](#implementation-notes)
+  - [Already Implemented](#already-implemented-removed-from-list)
+  - [Suggested Implementation Order](#suggested-implementation-order)
+- [Contributing](#contributing)
+
 ---
 
 ## Summary
 
 | Priority | Count | Status |
 |----------|-------|--------|
-| Critical | 2 | Needs immediate attention |
+| Critical | 1 | Needs immediate attention |
 | High | 12 | Should address before production |
-| Medium | 25 | Address in upcoming sprints |
+| Medium | 27 | Address as capacity allows |
 | Low | 40+ | Nice-to-have / Future enhancements |
 
 ---
@@ -37,21 +57,17 @@ public List<Employee> findAll() { ... }
 
 ---
 
-### 2. Add 5xx Error Retry Support
+### ~~2. Add 5xx Error Retry Support~~
 **Source**: PR #5
 **Category**: Resilience
-**Status**: ❌ Not Implemented
+**Status**: ✅ Implemented (PR #14)
 
-Currently only retries on 429 (Too Many Requests). Should also retry on transient 5xx errors:
-- 502 Bad Gateway
-- 503 Service Unavailable
-- 504 Gateway Timeout
+~~Currently only retries on 429 (Too Many Requests). Should also retry on transient 5xx errors:~~
+- ~~502 Bad Gateway~~
+- ~~503 Service Unavailable~~
+- ~~504 Gateway Timeout~~
 
-```java
-@Retryable(retryFor = {TooManyRequestsException.class, TransientServerException.class})
-```
-
-**Why Critical**: Transient 5xx errors are common in distributed systems and should be retried.
+Now retries on all 5xx errors via `RetryableServerException` with full integration test coverage.
 
 ---
 
@@ -249,15 +265,44 @@ Mixing Log4j2 and SLF4J. Use SLF4J facade throughout.
 .collect(Collectors.joining(", "))
 ```
 
-### Documentation
+### Documentation & DX
 
-#### 25. Document Race Condition in deleteById
+#### 25. Add OpenAPI/Swagger Documentation
+**Source**: Task Master #11
+**Category**: Documentation
+**Complexity**: 3 points
+
+Integrate springdoc-openapi to provide automatic API documentation with interactive Swagger UI:
+
+- Add `springdoc-openapi-starter-webmvc-ui` dependency
+- Create `OpenApiConfig` with API metadata
+- Add `@Operation` and `@ApiResponse` annotations to controller
+- Add `@Schema` annotations to domain models with examples
+- Accessible at `/swagger-ui.html` and `/api-docs`
+
+**Why Medium**: Improves evaluator experience and API discoverability for coding challenge review.
+
+#### 26. Add Spring Boot Actuator Health Endpoints
+**Source**: Task Master #12
+**Category**: Observability
+**Complexity**: 3 points
+
+Add production-readiness features with health checks:
+
+- Add `spring-boot-starter-actuator` dependency
+- Expose `/actuator/health` and `/actuator/info` endpoints
+- Create custom `MockServerHealthIndicator` to check downstream connectivity
+- Configure health check details visibility
+
+**Why Medium**: Demonstrates production-readiness practices for coding challenge.
+
+#### 27. Document Race Condition in deleteById
 **Source**: PR #6
 **Category**: Documentation
 
 Time-of-check to time-of-use issue between find and delete operations.
 
-#### 26. Document Why 0 is Default for Highest Salary
+#### 28. Document Why 0 is Default for Highest Salary
 **Source**: PR #6
 **Category**: Documentation
 
@@ -327,13 +372,14 @@ The following suggestions from PR reviews have already been addressed:
 - ✅ Add cache eviction verification test (PR #9)
 - ✅ Add malformed JSON handling tests (PR #9)
 - ✅ Add delete race condition test (PR #9)
+- ✅ Add 5xx error retry support (PR #14)
 
 ### Suggested Implementation Order
 
-1. **Sprint 1 (Critical)**: Circuit breaker, 5xx retry support
-2. **Sprint 2 (High)**: Testing gaps, Locale.ROOT fix, error handling
-3. **Sprint 3 (Medium)**: Observability, remaining tests, documentation
-4. **Backlog**: Low priority items as capacity allows
+1. **Critical (8+ points)**: Circuit breaker *(5xx retry support now complete)*
+2. **High Priority (5-8 points)**: Testing gaps, Locale.ROOT fix, error handling
+3. **Medium Priority (3-5 points)**: Observability, remaining tests, documentation
+4. **Backlog (1-2 points)**: Low priority items as capacity allows
 
 ---
 
