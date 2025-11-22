@@ -1,96 +1,53 @@
-# ReliaQuest Coding Challenge - Solution
+# Employee API Challenge
 
-## Design Decisions
+A REST API that wraps the Mock Employee API with **resilience for rate limiting**, **100+ tests**, and **clean architecture**. The mock server randomly returns 429 responses with 30-90 second backoff periods—this implementation handles that gracefully.
 
-**This section explains what was built, what was deliberately omitted, and why.**
+## Quick Start
 
-### Why Retry with Exponential Backoff
+### Prerequisites
 
-The mock server randomly rate-limits requests (429 responses) with a **30-90 second backoff period**. This is the core technical challenge of the assignment.
+- Java 25+ (api module) / Java 17 (server module)
+- Gradle 9.2.1+ (wrapper included)
+- SDKMAN recommended: run `sdk env` to auto-switch Java versions
 
-**Solution**: Implemented `@Retryable` with exponential backoff configured to match the server's backoff:
-- **Runtime**: 5 attempts, 10s → 20s → 40s → 80s (covers up to 150s total wait)
-- **Tests**: 3 attempts, 100ms delays (fast execution with WireMock)
+### Run
 
-**Why different configurations**: The mock server's aggressive rate limiting (30-90s) requires patient retry in production, but tests use WireMock with deterministic responses so can run fast.
+```bash
+# Check environment and start services
+./doctor.sh --start
 
-**Why this is appropriate**: Rate limiting is explicitly mentioned in the requirements. Retry logic directly addresses the stated problem and demonstrates understanding of real-world resilience patterns.
+# Or manually:
+./gradlew server:bootRun  # Terminal 1: Mock server (port 8112)
+./gradlew api:bootRun     # Terminal 2: API (port 8111)
+```
 
-### Why NOT Hexagonal Architecture
+### Test the API
 
-A hexagonal/ports-and-adapters architecture (separate Port interface + Adapter implementation) would add abstraction layers without benefit for this use case.
+```bash
+curl http://localhost:8111/api/v1/employee
+curl http://localhost:8111/api/v1/employee/highestSalary
+curl -X POST http://localhost:8111/api/v1/employee \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Jane Doe","salary":75000,"age":28,"title":"Engineer"}'
+```
 
-**What would justify hexagonal architecture**:
-- Multiple data sources (database + external API)
-- Need to swap implementations (test doubles, different vendors)
-- Large team needing clear boundaries
+### Run Tests
 
-**Why it's omitted here**:
-- Single data source (one HTTP API)
-- Service layer can call WebClient directly with no loss of clarity
-- Tests use WireMock for HTTP-level mocking (industry standard)
-- Fewer files = faster code review and easier understanding
-
-**In production**: If this API needed to support multiple backends or required extensive unit testing with mocks, I would add the port/adapter abstraction.
-
-### Why Consolidated Exception Hierarchy
-
-The implementation uses 3 exception types:
-- `EmployeeNotFoundException` - 404 for missing resources
-- `TooManyRequestsException` - 429 for retry logic (needed for `@Retryable`)
-- `EmployeeServiceException` - all other service errors with HTTP status
-
-**Why not 5-6 separate exception types**: The `GlobalExceptionHandler` routes exceptions to HTTP responses. A single exception with an `HttpStatus` field achieves the same result with less code.
-
-### Why NOT Retry on 5xx Server Errors
-
-Only 429 (rate limiting) triggers retry. Server errors (5xx) return immediately as 502 Bad Gateway.
-
-**Why this is appropriate**:
-- The mock server's documented behavior is rate limiting (429), not server failures
-- 5xx errors indicate server bugs or infrastructure issues—retrying won't help
-- Retrying on 5xx could mask upstream problems that need investigation
-- Fail-fast allows clients to implement their own retry strategies
-
-**In production**: If the upstream server had transient 5xx errors (e.g., 503 during deployments), I would add retry logic with a circuit breaker to prevent cascading failures.
-
-### Known Limitations
-
-**deleteEmployeeById has a race condition**
-
-The mock server requires the employee name for deletion, but the controller receives an ID. The implementation:
-1. Fetches the employee by ID
-2. Deletes by name
-
-Between steps 1 and 2, another process could delete or rename the employee.
-
-**In production**: Request an ID-based delete endpoint, or implement optimistic locking.
-
-### What Would Be Added in Production
-
-| Feature | When Needed | Why Omitted |
-|---------|-------------|-------------|
-| Circuit breaker | When downstream failures cause cascading issues | Retry with timeout handles the mock server's rate limiting |
-| OpenAPI/Swagger | When API is consumed by external teams | Self-documenting code sufficient for interview context |
-| Metrics (Micrometer) | When operating at scale with monitoring | No observability stack to consume the metrics |
-| Distributed tracing | When debugging spans multiple services | Single service, correlation IDs sufficient |
-
-For a complete list of future improvements and technical debt from code reviews, see **[FUTURE_IMPROVEMENTS.md](FUTURE_IMPROVEMENTS.md)**.
+```bash
+./gradlew test            # All tests
+./gradlew api:test        # API module only
+```
 
 ---
 
-## Solution Overview
-
-A REST API that consumes the Mock Employee API with emphasis on **appropriate scoping**, **resilience**, and **test coverage**.
-
-### Architecture
+## Architecture
 
 ```mermaid
 flowchart LR
     Client([Client])
-    Controller[EmployeeController<br/>routing + validation]
-    Service[EmployeeService<br/>business logic + retry + cache]
-    WebClient[WebClient<br/>HTTP client]
+    Controller[EmployeeController]
+    Service[EmployeeService<br/>retry + cache]
+    WebClient[WebClient]
     Mock[(Mock Server<br/>:8112)]
 
     Client --> Controller
@@ -98,139 +55,106 @@ flowchart LR
     Service --> WebClient
     WebClient --> Mock
 
-    subgraph "Spring AOP Proxies"
-        Service
-    end
-
     style Service fill:#e1f5fe
     style Mock fill:#fff3e0
 ```
 
-**Request flow:**
-1. **Controller** validates input and routes to service
-2. **Service** applies business logic (search, filter, sort)
-3. **@Cacheable** returns cached data or proceeds to HTTP call
-4. **@Retryable** handles 429 responses with exponential backoff
-5. **WebClient** makes HTTP request to mock server
-
-### Sequence: Rate Limiting with Retry
+### Retry Behavior
 
 ```mermaid
 sequenceDiagram
     participant Client
-    participant Controller
     participant Service
-    participant Cache
     participant MockServer
 
-    Client->>Controller: GET /employees
-    Controller->>Service: getAllEmployees()
-    Service->>Cache: Check cache
-
-    alt Cache Hit
-        Cache-->>Service: Return cached data
-    else Cache Miss
-        Service->>MockServer: GET /api/v1/employee
-
-        alt 429 Rate Limited
-            MockServer-->>Service: 429 Too Many Requests
-            Note over Service: Wait 10s (backoff)
-            Service->>MockServer: Retry #1
-            MockServer-->>Service: 429 Too Many Requests
-            Note over Service: Wait 20s (backoff)
-            Service->>MockServer: Retry #2
-            MockServer-->>Service: 200 OK + data
-        else Success
-            MockServer-->>Service: 200 OK + data
-        end
-
-        Service->>Cache: Store in cache (30s TTL)
-    end
-
-    Service-->>Controller: List<Employee>
-    Controller-->>Client: 200 OK + JSON
+    Client->>Service: Request
+    Service->>MockServer: GET /employee
+    MockServer-->>Service: 429 Rate Limited
+    Note over Service: Exponential backoff
+    Service->>MockServer: Retry
+    MockServer-->>Service: 200 OK
+    Service-->>Client: Response
 ```
 
-The service layer handles:
-- Business logic (search, filter, sort)
-- HTTP client calls (WebClient)
-- Retry logic (`@Retryable` with exponential backoff)
-- Caching (`@Cacheable` for getAllEmployees)
-
-### Resilience Features
-
-**Rate Limiting Handling**
-- **Retry**: 5 attempts with exponential backoff (10s → 20s → 40s → 80s) to cover 30-90s server backoff
-- **Caching**: In-memory cache for getAllEmployees (30s TTL)
-- **Recovery**: Service unavailable (503) after retry exhaustion
-- **Test config**: Fast retry (100ms delays) with WireMock for deterministic tests
-
-**Error Handling**
-- Correlation IDs in all log entries
-- Structured JSON error responses
-- Appropriate HTTP status codes (400, 404, 429, 500, 502, 503)
-
-### All 7 Endpoints Implemented
+### All 7 Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/employees` | GET | Returns all employees (cached) |
-| `/employees/search/{searchString}` | GET | Case-insensitive name search |
-| `/employees/{id}` | GET | Get employee by UUID |
-| `/employees/highestSalary` | GET | Returns highest salary integer |
-| `/employees/topTenHighestEarningEmployeeNames` | GET | Top 10 earners (names only) |
-| `/employees` | POST | Create employee (returns 201) |
-| `/employees/{id}` | DELETE | Delete by ID (returns name) |
-
-### Testing Strategy
-
-- **Integration tests**: WireMock-based tests verifying retry behavior, error handling, and full HTTP cycles
-- **Unit tests**: Exception handler, controller routing, domain model validation
-
-**Why WireMock instead of the Mock Server?**
-
-The mock server randomly rate-limits requests, making tests flaky. WireMock provides deterministic control over responses for reliable CI.
+| `/api/v1/employee` | GET | All employees (cached) |
+| `/api/v1/employee/search/{name}` | GET | Case-insensitive name search |
+| `/api/v1/employee/{id}` | GET | Employee by UUID |
+| `/api/v1/employee/highestSalary` | GET | Highest salary (integer) |
+| `/api/v1/employee/topTenHighestEarningEmployeeNames` | GET | Top 10 earner names |
+| `/api/v1/employee` | POST | Create employee (201) |
+| `/api/v1/employee/{id}` | DELETE | Delete by ID (returns name) |
 
 ---
 
-## Getting Started
+## Resilience Strategy
 
-### Prerequisites
+The mock server rate-limits randomly with 30-90 second backoff. The retry configuration handles this:
 
-- Java 25+ (for api module - use `sdk env` if you have SDKMAN)
-- Gradle 9.2.1+ (wrapper included)
-
-> **Note**: The server module (mock server) uses Java 17 as provided. The api module (my implementation) uses Java 25.
-
-### Quick Start
-
-```bash
-# Check environment and optionally start services
-./doctor.sh --start
-
-# Or manually:
-./gradlew server:bootRun  # Terminal 1: Start mock server
-./gradlew api:bootRun     # Terminal 2: Start API
+```
+Attempt 1: immediate
+Attempt 2: wait 10s
+Attempt 3: wait 20s
+Attempt 4: wait 40s
+Attempt 5: wait 80s
+─────────────────────
+Total: up to 150s coverage
 ```
 
-### Running Tests
+After 5 attempts, returns **503 Service Unavailable** with `Retry-After` header.
 
-```bash
-./gradlew test            # All tests
-./gradlew api:test        # API module only
-```
+### Additional Resilience
 
-### Code Formatting
+- **Caching**: `getAllEmployees` cached for 30s to reduce rate-limit exposure
+- **Correlation IDs**: Every request tagged for log tracing
+- **Structured errors**: JSON responses with appropriate HTTP status codes
 
-```bash
-./gradlew spotlessApply   # Apply Palantir Java Format
-```
+---
+
+## Testing Approach
+
+**100+ tests** covering retry behavior, error handling, edge cases, and full HTTP cycles.
+
+### WireMock for Deterministic Tests
+
+The mock server's random rate-limiting makes tests flaky. WireMock provides:
+- Deterministic responses for reliable CI
+- Scenario-based testing for retry sequences
+- Fast execution (100ms retry delays vs 10s+ in production)
+
+Test configuration uses shorter delays while production configuration matches the actual 30-90s server backoff.
+
+---
+
+## Technical Decisions
+
+### Direct Service Architecture
+
+Single service layer calling WebClient directly. Hexagonal architecture (ports/adapters) would add abstraction without benefit here—there's one data source and WireMock handles HTTP-level mocking.
+
+### Consolidated Exception Handling
+
+Three exception types route to appropriate HTTP responses:
+- `EmployeeNotFoundException` → 404
+- `TooManyRequestsException` → triggers retry, then 503
+- `EmployeeServiceException` → 502 with details
+
+A `GlobalExceptionHandler` maps these consistently across all endpoints.
+
+### Fail-Fast on 5xx
+
+Only 429 triggers retry. Server errors (5xx) return immediately as 502—retrying won't fix upstream bugs, and fail-fast lets clients implement their own strategies.
+
+### Delete by ID
+
+The mock server requires employee name for deletion, but the API receives an ID. The implementation fetches the employee first, creating a brief race window. Production would need an ID-based delete endpoint or optimistic locking.
 
 ---
 
 ## Configuration
-
-Key properties in `application.yml`:
 
 ```yaml
 employee:
@@ -239,9 +163,8 @@ employee:
     connect-timeout: 5s
     read-timeout: 10s
     retry:
-      # Configured for mock server's 30-90s rate limit backoff
       max-attempts: 5
-      delay: 10000  # 10 seconds
+      delay: 10000      # 10 seconds
       multiplier: 2.0
   cache:
     ttl-seconds: 30
@@ -249,10 +172,10 @@ employee:
 
 ---
 
-## API Reference
+## Future Improvements
 
-### Mock Employee API (Port 8112)
-
-The mock server generates random employee data on startup and randomly rate-limits requests.
-
-See the original challenge documentation for endpoint details.
+For production deployment, see **[FUTURE_IMPROVEMENTS.md](FUTURE_IMPROVEMENTS.md)** which covers:
+- Circuit breaker patterns
+- Metrics and distributed tracing
+- OpenAPI documentation
+- Additional edge case handling
