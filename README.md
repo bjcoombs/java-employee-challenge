@@ -81,6 +81,8 @@ Between steps 1 and 2, another process could delete or rename the employee.
 | Metrics (Micrometer) | When operating at scale with monitoring | No observability stack to consume the metrics |
 | Distributed tracing | When debugging spans multiple services | Single service, correlation IDs sufficient |
 
+For a complete list of future improvements and technical debt from code reviews, see **[FUTURE_IMPROVEMENTS.md](FUTURE_IMPROVEMENTS.md)**.
+
 ---
 
 ## Solution Overview
