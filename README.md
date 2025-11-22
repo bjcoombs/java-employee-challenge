@@ -1,6 +1,6 @@
 # Employee API Challenge
 
-A REST API that wraps the Mock Employee API with **resilience for rate limiting**, **102 tests**, and **clean architecture**. The mock server randomly returns 429 responses with 30-90 second backoff periods—this implementation handles that gracefully.
+A REST API that wraps the Mock Employee API with **resilience for rate limiting**, **100+ tests**, and **clean architecture**. The mock server randomly returns 429 responses with 30-90 second backoff periods—this implementation handles that gracefully.
 
 ## Quick Start
 
@@ -59,13 +59,13 @@ flowchart LR
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/employee` | GET | All employees (cached) |
-| `/employee/search/{name}` | GET | Case-insensitive name search |
-| `/employee/{id}` | GET | Employee by UUID |
-| `/employee/highestSalary` | GET | Highest salary (integer) |
-| `/employee/topTenHighestEarningEmployeeNames` | GET | Top 10 earner names |
-| `/employee` | POST | Create employee (201) |
-| `/employee/{id}` | DELETE | Delete by ID (returns name) |
+| `/api/v1/employee` | GET | All employees (cached) |
+| `/api/v1/employee/search/{name}` | GET | Case-insensitive name search |
+| `/api/v1/employee/{id}` | GET | Employee by UUID |
+| `/api/v1/employee/highestSalary` | GET | Highest salary (integer) |
+| `/api/v1/employee/topTenHighestEarningEmployeeNames` | GET | Top 10 earner names |
+| `/api/v1/employee` | POST | Create employee (201) |
+| `/api/v1/employee/{id}` | DELETE | Delete by ID (returns name) |
 
 ---
 
@@ -95,7 +95,7 @@ After 5 attempts, returns **503 Service Unavailable** with `Retry-After` header.
 
 ## Testing Approach
 
-**102 tests** covering retry behavior, error handling, edge cases, and full HTTP cycles.
+**100+ tests** covering retry behavior, error handling, edge cases, and full HTTP cycles.
 
 ### WireMock for Deterministic Tests
 
