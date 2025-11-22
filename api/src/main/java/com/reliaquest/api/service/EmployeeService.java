@@ -11,7 +11,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,19 +98,41 @@ public class EmployeeService {
                 .toList();
     }
 
+    @Retryable(
+            retryFor = TooManyRequestsException.class,
+            noRetryFor = EmployeeNotFoundException.class,
+            maxAttemptsExpression = "#{${employee.client.retry.max-attempts:3}}",
+            backoff =
+                    @Backoff(
+                            delayExpression = "#{${employee.client.retry.delay:500}}",
+                            multiplierExpression = "#{${employee.client.retry.multiplier:2.0}}"))
     public Employee getById(UUID id) {
         String correlationId = getCorrelationId();
         logger.debug("Finding employee by id={} correlationId={}", id, correlationId);
 
-        // Mock server doesn't provide a GET by ID endpoint, so we fetch all and filter
-        // This is a known limitation that would cause performance issues at scale
-        Optional<Employee> employee =
-                getAllEmployees().stream().filter(e -> e.id().equals(id)).findFirst();
+        ApiResponse<Employee> response = webClient
+                .get()
+                .uri("/{id}", id)
+                .retrieve()
+                .onStatus(
+                        status -> status.value() == 404,
+                        r -> r.bodyToMono(String.class)
+                                .defaultIfEmpty("")
+                                .flatMap(body -> {
+                                    logger.warn("Employee not found id={} correlationId={}", id, correlationId);
+                                    return Mono.error(new EmployeeNotFoundException(id));
+                                }))
+                .onStatus(HttpStatusCode::is4xxClientError, r -> handle4xxError(r, "fetching employee by id"))
+                .onStatus(HttpStatusCode::is5xxServerError, r -> handle5xxError(r, "fetching employee by id"))
+                .bodyToMono(new ParameterizedTypeReference<ApiResponse<Employee>>() {})
+                .block();
 
-        return employee.orElseThrow(() -> {
+        if (response == null || response.data() == null) {
             logger.warn("Employee not found id={} correlationId={}", id, correlationId);
-            return new EmployeeNotFoundException(id);
-        });
+            throw new EmployeeNotFoundException(id);
+        }
+
+        return response.data();
     }
 
     public int getHighestSalary() {
@@ -247,6 +268,18 @@ public class EmployeeService {
         logger.error("All retry attempts exhausted for getAllEmployees correlationId={}", getCorrelationId(), e);
         throw new EmployeeServiceException(
                 "Employee service temporarily unavailable after retries", HttpStatus.SERVICE_UNAVAILABLE, e);
+    }
+
+    @Recover
+    public Employee recoverGetById(TooManyRequestsException e, UUID id) {
+        logger.error("All retry attempts exhausted for getById id={} correlationId={}", id, getCorrelationId(), e);
+        throw new EmployeeServiceException(
+                "Employee service temporarily unavailable after retries", HttpStatus.SERVICE_UNAVAILABLE, e);
+    }
+
+    @Recover
+    public Employee recoverGetByIdNotFound(EmployeeNotFoundException e, UUID id) {
+        throw e;
     }
 
     @Recover

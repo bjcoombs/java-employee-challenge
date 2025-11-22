@@ -1,0 +1,11 @@
+{
+  "data": {
+    "id": "%s",
+    "name": "John Doe",
+    "salary": 50000,
+    "age": 30,
+    "title": "Developer",
+    "email": "john@test.com"
+  },
+  "status": "Successfully processed request."
+}
