@@ -1,0 +1,45 @@
+### Mock Employee Server (port 8112) - Direct API Testing
+### These requests go directly to the stubbed server your API calls
+
+### Get all employees
+GET http://localhost:8112/api/v1/employee
+Accept: application/json
+
+###
+
+### Get employee by ID (replace with valid UUID from list above)
+GET http://localhost:8112/api/v1/employee/123e4567-e89b-12d3-a456-426614174000
+Accept: application/json
+
+###
+
+### Create new employee
+POST http://localhost:8112/api/v1/employee
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Test Employee",
+  "salary": 75000,
+  "age": 30,
+  "title": "Software Engineer"
+}
+
+###
+
+### Delete employee (requires name in body, not ID in path)
+DELETE http://localhost:8112/api/v1/employee
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Test Employee"
+}
+
+###
+
+### Test rate limiting (run multiple times quickly)
+GET http://localhost:8112/api/v1/employee
+Accept: application/json
+
+###

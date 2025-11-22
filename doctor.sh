@@ -45,10 +45,42 @@ echo "║      ReliaQuest Employee API - Environment Doctor          ║"
 echo "╚════════════════════════════════════════════════════════════╝"
 echo ""
 
-# Check Java
+# Check dependencies
 echo "Checking dependencies..."
 echo ""
 
+# Check for SDKMAN and activate correct Java version
+if [ -f ".sdkmanrc" ] && [ -d "$HOME/.sdkman" ]; then
+    print_status "SDKMAN detected with .sdkmanrc" "pass"
+
+    # Source SDKMAN if not already loaded
+    if ! command -v sdk &> /dev/null; then
+        export SDKMAN_DIR="$HOME/.sdkman"
+        if [ -s "$SDKMAN_DIR/bin/sdkman-init.sh" ]; then
+            source "$SDKMAN_DIR/bin/sdkman-init.sh"
+        fi
+    fi
+
+    # Try to activate the environment from .sdkmanrc
+    if command -v sdk &> /dev/null; then
+        REQUIRED_JAVA=$(grep "^java=" .sdkmanrc | cut -d'=' -f2)
+        if [ -n "$REQUIRED_JAVA" ]; then
+            # Check if the required version is installed
+            if [ -d "$HOME/.sdkman/candidates/java/$REQUIRED_JAVA" ]; then
+                # Activate it
+                sdk use java "$REQUIRED_JAVA" > /dev/null 2>&1
+                print_status "  Activated Java $REQUIRED_JAVA via SDKMAN" "pass"
+            else
+                print_status "  Java $REQUIRED_JAVA not installed (run: sdk install java $REQUIRED_JAVA)" "fail"
+            fi
+        fi
+    fi
+elif [ -f ".sdkmanrc" ]; then
+    print_status "SDKMAN not installed but .sdkmanrc exists" "warn"
+    echo "        Install SDKMAN: https://sdkman.io/install"
+fi
+
+# Check Java
 if check_command java "Java is installed"; then
     JAVA_VERSION=$(java -version 2>&1 | head -n 1 | cut -d'"' -f2)
     JAVA_MAJOR=$(echo "$JAVA_VERSION" | cut -d'.' -f1)

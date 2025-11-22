@@ -2,11 +2,11 @@
   "data": [
     {
       "id": "%s",
-      "employee_name": "John Doe",
-      "employee_salary": 50000,
-      "employee_age": 30,
-      "employee_title": "Engineer",
-      "employee_email": "john@test.com"
+      "name": "John Doe",
+      "salary": 50000,
+      "age": 30,
+      "title": "Engineer",
+      "email": "john@test.com"
     }
   ],
   "status": "success"

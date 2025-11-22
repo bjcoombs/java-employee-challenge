@@ -241,11 +241,11 @@ class EmployeeIntegrationTest {
                     """
                     {
                         "id": "%s",
-                        "employee_name": "Employee %d",
-                        "employee_salary": %d,
-                        "employee_age": 30,
-                        "employee_title": "Developer",
-                        "employee_email": "emp%d@test.com"
+                        "name": "Employee %d",
+                        "salary": %d,
+                        "age": 30,
+                        "title": "Developer",
+                        "email": "emp%d@test.com"
                     }
                     """
                             .formatted(UUID.randomUUID(), i, i * 10000, i));
