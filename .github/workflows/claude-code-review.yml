@@ -50,6 +50,17 @@ jobs:
             **Tone**: Be constructive and specific. Point out what works well and what needs improvement.
             Focus on principal-level engineering practices.
 
+            **Architectural Diagrams**: If the PR includes architectural changes (e.g., new API endpoints,
+            changes to service layer, modifications to HTTP client behavior, retry patterns, or caching),
+            include a Mermaid sequence diagram in your review to illustrate the change. Example:
+
+            ```mermaid
+            sequenceDiagram
+                Client->>Controller: Request
+                Controller->>Service: Method call
+                Service->>External API: HTTP request
+            ```
+
             Use `gh pr comment` to leave your review on the PR.
 
           claude_args: '--allowed-tools "Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(./gradlew:*),Read,Glob,Grep"'
