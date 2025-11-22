@@ -1,14 +1,34 @@
-### Mock Employee Server (port 8112) - Direct API Testing
-### These requests go directly to the stubbed server your API calls
+# Mock Employee Server - Direct API Testing
+#
+# These requests are for use with IntelliJ IDEA's HTTP Client.
+# Run ./gradlew server:bootRun first.
+#
+# These bypass your API implementation and hit the mock server directly.
+# Useful for:
+# - Understanding the actual response format
+# - Testing rate limiting behavior
+# - Verifying your WireMock stubs match real responses
+#
+# Note: The server randomly rate-limits requests (429 responses)
 
-### Get all employees
+### Get all employees (run first to get valid IDs)
 GET http://localhost:8112/api/v1/employee
 Accept: application/json
 
+> {%
+    if (response.body.data && response.body.data.length > 0) {
+        var emp = response.body.data[0];
+        client.global.set("mockEmployeeId", emp.id);
+        client.global.set("mockEmployeeName", emp.name);
+        client.log("Stored mockEmployeeId: " + emp.id);
+        client.log("Stored mockEmployeeName: " + emp.name);
+    }
+%}
+
 ###
 
-### Get employee by ID (replace with valid UUID from list above)
-GET http://localhost:8112/api/v1/employee/123e4567-e89b-12d3-a456-426614174000
+### Get employee by ID (uses ID from previous request)
+GET http://localhost:8112/api/v1/employee/{{mockEmployeeId}}
 Accept: application/json
 
 ###
@@ -25,6 +45,13 @@ Accept: application/json
   "title": "Software Engineer"
 }
 
+> {%
+    if (response.body.data && response.body.data.id) {
+        client.global.set("createdMockName", response.body.data.name);
+        client.log("Created employee: " + response.body.data.name);
+    }
+%}
+
 ###
 
 ### Delete employee (requires name in body, not ID in path)
@@ -33,12 +60,12 @@ Content-Type: application/json
 Accept: application/json
 
 {
-  "name": "Test Employee"
+  "name": "{{createdMockName}}"
 }
 
 ###
 
-### Test rate limiting (run multiple times quickly)
+### Test rate limiting (run multiple times quickly - expect 429)
 GET http://localhost:8112/api/v1/employee
 Accept: application/json
 
