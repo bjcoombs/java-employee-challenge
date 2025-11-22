@@ -172,10 +172,12 @@ employee:
 
 ---
 
-## Future Improvements
+## Production Considerations
 
-For production deployment, see **[FUTURE_IMPROVEMENTS.md](FUTURE_IMPROVEMENTS.md)** which covers:
-- Circuit breaker patterns
-- Metrics and distributed tracing
-- OpenAPI documentation
-- Additional edge case handling
+For production deployment, consider adding:
+
+- **Circuit breaker** (Resilience4j) to prevent cascade failures
+- **Bulkhead pattern** to limit concurrent requests during rate limiting
+- **Metrics** (Micrometer) for request counts, error rates, response times
+- **OpenAPI/Swagger** for API documentation
+- **Health checks** via Spring Actuator
