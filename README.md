@@ -113,6 +113,44 @@ flowchart LR
 4. **@Retryable** handles 429 responses with exponential backoff
 5. **WebClient** makes HTTP request to mock server
 
+### Sequence: Rate Limiting with Retry
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Controller
+    participant Service
+    participant Cache
+    participant MockServer
+
+    Client->>Controller: GET /employees
+    Controller->>Service: getAllEmployees()
+    Service->>Cache: Check cache
+
+    alt Cache Hit
+        Cache-->>Service: Return cached data
+    else Cache Miss
+        Service->>MockServer: GET /api/v1/employee
+
+        alt 429 Rate Limited
+            MockServer-->>Service: 429 Too Many Requests
+            Note over Service: Wait 500ms (backoff)
+            Service->>MockServer: Retry #1
+            MockServer-->>Service: 429 Too Many Requests
+            Note over Service: Wait 1000ms (backoff)
+            Service->>MockServer: Retry #2
+            MockServer-->>Service: 200 OK + data
+        else Success
+            MockServer-->>Service: 200 OK + data
+        end
+
+        Service->>Cache: Store in cache (30s TTL)
+    end
+
+    Service-->>Controller: List<Employee>
+    Controller-->>Client: 200 OK + JSON
+```
+
 The service layer handles:
 - Business logic (search, filter, sort)
 - HTTP client calls (WebClient)
