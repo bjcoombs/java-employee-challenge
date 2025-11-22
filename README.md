@@ -56,12 +56,6 @@ Only 429 (rate limiting) triggers retry. Server errors (5xx) return immediately 
 
 ### Known Limitations
 
-**getEmployeeById fetches all employees and filters**
-
-The mock server doesn't provide a GET by ID endpoint. The implementation fetches all employees and filters client-side.
-
-**In production**: Request a direct endpoint, or implement caching with proper invalidation.
-
 **deleteEmployeeById has a race condition**
 
 The mock server requires the employee name for deletion, but the controller receives an ID. The implementation:
