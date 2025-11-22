@@ -196,8 +196,10 @@ The mock server randomly rate-limits requests, making tests flaky. WireMock prov
 
 ### Prerequisites
 
-- Java 25+
+- Java 25+ (for api module - use `sdk env` if you have SDKMAN)
 - Gradle 9.2.1+ (wrapper included)
+
+> **Note**: The server module (mock server) uses Java 17 as provided. The api module (my implementation) uses Java 25.
 
 ### Quick Start
 
