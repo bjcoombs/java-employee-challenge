@@ -1,12 +1,10 @@
-# Employee API - Manual Testing
-#
-# These requests are for use with IntelliJ IDEA's HTTP Client.
+### Employee API - Manual Testing
+# For use with IntelliJ IDEA's HTTP Client.
 # Run ./gradlew api:bootRun first (requires mock server on 8112).
 #
 # Usage:
 # 1. Click the green play button next to any request
-# 2. Use "Run with..." to select environment (dev, test)
-# 3. Variables like {{employeeId}} are extracted from responses
+# 2. Variables like {{employeeId}} are extracted from responses
 #
 # Tip: Run "Get all employees" first to populate {{employeeId}}
 

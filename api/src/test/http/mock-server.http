@@ -1,6 +1,5 @@
-# Mock Employee Server - Direct API Testing
-#
-# These requests are for use with IntelliJ IDEA's HTTP Client.
+### Mock Employee Server - Direct API Testing
+# For use with IntelliJ IDEA's HTTP Client.
 # Run ./gradlew server:bootRun first.
 #
 # These bypass your API implementation and hit the mock server directly.
