@@ -14,6 +14,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.ParameterizedTypeReference;
@@ -35,9 +36,10 @@ public class EmployeeService {
 
     private static final Logger logger = LoggerFactory.getLogger(EmployeeService.class);
 
+    // Not final due to CGLIB proxy requirement - Spring manages lifecycle
     private WebClient webClient;
 
-    @org.springframework.beans.factory.annotation.Autowired
+    @Autowired
     public EmployeeService(WebClient.Builder webClientBuilder, EmployeeClientProperties properties) {
         HttpClient httpClient = HttpClient.create()
                 .responseTimeout(properties.readTimeout())

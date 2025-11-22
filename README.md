@@ -38,6 +38,18 @@ The implementation uses 3 exception types:
 
 **Why not 5-6 separate exception types**: The `GlobalExceptionHandler` routes exceptions to HTTP responses. A single exception with an `HttpStatus` field achieves the same result with less code.
 
+### Why NOT Retry on 5xx Server Errors
+
+Only 429 (rate limiting) triggers retry. Server errors (5xx) return immediately as 502 Bad Gateway.
+
+**Why this is appropriate**:
+- The mock server's documented behavior is rate limiting (429), not server failures
+- 5xx errors indicate server bugs or infrastructure issues—retrying won't help
+- Retrying on 5xx could mask upstream problems that need investigation
+- Fail-fast allows clients to implement their own retry strategies
+
+**In production**: If the upstream server had transient 5xx errors (e.g., 503 during deployments), I would add retry logic with a circuit breaker to prevent cascading failures.
+
 ### Known Limitations
 
 **getEmployeeById fetches all employees and filters**
