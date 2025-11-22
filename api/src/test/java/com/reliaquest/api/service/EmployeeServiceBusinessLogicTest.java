@@ -1,7 +1,8 @@
-package com.reliaquest.api.domain;
+package com.reliaquest.api.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.reliaquest.api.domain.Employee;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -197,8 +198,7 @@ class EmployeeServiceBusinessLogicTest {
     void getTopTenHighestEarningNames_shouldReturnOnlyNames() {
         List<String> topTen = employeeService.getTopTenHighestEarningNames();
 
-        // Verify we get strings, not employee objects
-        assertThat(topTen).allMatch(name -> name instanceof String);
-        assertThat(topTen).allMatch(name -> !name.contains("@")); // No emails
+        // Verify we get names, not emails or other employee data
+        assertThat(topTen).allMatch(name -> !name.contains("@"));
     }
 }

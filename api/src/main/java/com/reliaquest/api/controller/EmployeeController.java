@@ -2,7 +2,7 @@ package com.reliaquest.api.controller;
 
 import com.reliaquest.api.domain.CreateEmployeeRequest;
 import com.reliaquest.api.domain.Employee;
-import com.reliaquest.api.domain.EmployeeService;
+import com.reliaquest.api.service.EmployeeService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;

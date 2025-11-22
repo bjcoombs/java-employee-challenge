@@ -1,7 +1,9 @@
-package com.reliaquest.api.domain;
+package com.reliaquest.api.service;
 
 import com.reliaquest.api.adapter.ApiResponse;
 import com.reliaquest.api.config.EmployeeClientProperties;
+import com.reliaquest.api.domain.CreateEmployeeRequest;
+import com.reliaquest.api.domain.Employee;
 import com.reliaquest.api.exception.EmployeeNotFoundException;
 import com.reliaquest.api.exception.EmployeeServiceException;
 import com.reliaquest.api.exception.TooManyRequestsException;
