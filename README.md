@@ -85,11 +85,33 @@ A REST API that consumes the Mock Employee API with emphasis on **appropriate sc
 
 ### Architecture
 
+```mermaid
+flowchart LR
+    Client([Client])
+    Controller[EmployeeController<br/>routing + validation]
+    Service[EmployeeService<br/>business logic + retry + cache]
+    WebClient[WebClient<br/>HTTP client]
+    Mock[(Mock Server<br/>:8112)]
+
+    Client --> Controller
+    Controller --> Service
+    Service --> WebClient
+    WebClient --> Mock
+
+    subgraph "Spring AOP Proxies"
+        Service
+    end
+
+    style Service fill:#e1f5fe
+    style Mock fill:#fff3e0
 ```
-EmployeeController → EmployeeService → WebClient → Mock Server
-     (routing)         (business logic     (HTTP client)
-                        + retry + cache)
-```
+
+**Request flow:**
+1. **Controller** validates input and routes to service
+2. **Service** applies business logic (search, filter, sort)
+3. **@Cacheable** returns cached data or proceeds to HTTP call
+4. **@Retryable** handles 429 responses with exponential backoff
+5. **WebClient** makes HTTP request to mock server
 
 The service layer handles:
 - Business logic (search, filter, sort)

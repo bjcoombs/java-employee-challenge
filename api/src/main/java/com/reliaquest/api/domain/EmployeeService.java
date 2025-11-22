@@ -266,9 +266,10 @@ public class EmployeeService {
                 "Employee service temporarily unavailable after retries", HttpStatus.SERVICE_UNAVAILABLE, e);
     }
 
+    // Spring Retry requires a recovery method for exceptions thrown within @Retryable methods.
+    // This re-throws EmployeeNotFoundException so GlobalExceptionHandler can return 404.
     @Recover
     public String recoverDeleteByIdNotFound(EmployeeNotFoundException e, UUID id) {
-        // Re-throw to be handled by GlobalExceptionHandler
         throw e;
     }
 }
