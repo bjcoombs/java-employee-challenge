@@ -1,28 +1,8 @@
 # Future Improvements & Technical Debt
 
-This document consolidates unimplemented suggestions from PR code reviews into actionable items for future development. Items are categorized by priority and type.
+This document consolidates unimplemented suggestions from PR code reviews into actionable items for future development.
 
 > **Last Updated**: Generated from analysis of PRs #5, #6, #7, #8, #9, and #11
-
-## Table of Contents
-
-- [Summary](#summary)
-- [Critical Priority](#critical-priority)
-  - [1. Circuit Breaker Pattern](#1-circuit-breaker-pattern)
-  - [2. Add 5xx Error Retry Support](#2-add-5xx-error-retry-support) ❌ (Deliberately omitted - see README)
-- [High Priority](#high-priority)
-  - [Testing Gaps](#testing-gaps)
-  - [Architecture](#architecture)
-- [Medium Priority](#medium-priority)
-  - [Observability & Monitoring](#observability--monitoring)
-  - [Testing Enhancements](#testing-enhancements)
-  - [Code Quality](#code-quality)
-  - [Documentation & DX](#documentation--dx)
-- [Low Priority / Future Enhancements](#low-priority--future-enhancements)
-- [Implementation Notes](#implementation-notes)
-  - [Already Implemented](#already-implemented-removed-from-list)
-  - [Suggested Implementation Order](#suggested-implementation-order)
-- [Contributing](#contributing)
 
 ---
 
@@ -30,21 +10,20 @@ This document consolidates unimplemented suggestions from PR code reviews into a
 
 | Priority | Count | Status |
 |----------|-------|--------|
-| Critical | 3 | Needs immediate attention (circuit breaker, bulkhead, 5xx retry if needed) |
-| High | 12 | Should address before production |
-| Medium | 27 | Address as capacity allows |
-| Low | 40+ | Nice-to-have / Future enhancements |
+| Critical | 3 | Needs immediate attention |
+| High | 10 | Should address before production |
+| Medium | 16 | Address as capacity allows |
+| Low | 20+ | Nice-to-have |
 
 ---
 
 ## Critical Priority
 
-These items represent potential production issues that should be addressed immediately.
+Items that could cause production issues.
 
-### 1. Circuit Breaker Pattern
-**Source**: PR #5
-**Category**: Resilience
-**Status**: ❌ Not Implemented
+### Circuit Breaker Pattern
+
+**Source**: PR #5 | **Category**: Resilience
 
 Add Resilience4j circuit breaker to prevent cascade failures when the downstream employee service is consistently failing.
 
@@ -53,16 +32,15 @@ Add Resilience4j circuit breaker to prevent cascade failures when the downstream
 public List<Employee> findAll() { ... }
 ```
 
-**Why Critical**: Without circuit breaker, a failing downstream service can exhaust thread pools and cause cascading failures across the application.
+**Why Critical**: Without circuit breaker, a failing downstream service can exhaust thread pools and cause cascading failures.
 
 ---
 
-### 2. Bulkhead Pattern for Request Queueing
-**Source**: Rate limiting analysis
-**Category**: Resilience
-**Status**: ❌ Not Implemented
+### Bulkhead Pattern for Request Queueing
 
-Add a semaphore/bulkhead to prevent request pile-up when the mock server is rate-limiting. Currently, if one request triggers rate-limiting (30-90s backoff), subsequent requests will also hit the limit and queue up in retry loops.
+**Source**: Rate limiting analysis | **Category**: Resilience
+
+Add a semaphore/bulkhead to prevent request pile-up when the mock server is rate-limiting.
 
 ```java
 @Bulkhead(name = "employeeService", type = Bulkhead.Type.SEMAPHORE)
@@ -70,122 +48,43 @@ Add a semaphore/bulkhead to prevent request pile-up when the mock server is rate
 public List<Employee> getAllEmployees() { ... }
 ```
 
-**Alternative**: Use Resilience4j bulkhead or simple semaphore to limit concurrent outbound requests.
-
-**Why Critical**: The mock server's aggressive rate limiting (30-90s) combined with exponential backoff means multiple concurrent requests could each wait 150+ seconds. A bulkhead would fail-fast for queued requests rather than overloading the downstream service.
+**Why Critical**: The mock server's aggressive rate limiting (30-90s) combined with exponential backoff means multiple concurrent requests could each wait 150+ seconds.
 
 ---
 
-### 3. Add 5xx Error Retry Support
-**Source**: PR #5
-**Category**: Resilience
-**Status**: ❌ Deliberately Omitted
+### 5xx Error Retry Support (Deliberately Omitted)
 
-Currently only retries on 429 (Too Many Requests). Could also retry on transient 5xx errors:
-- 502 Bad Gateway
-- 503 Service Unavailable
-- 504 Gateway Timeout
+**Source**: PR #5 | **Category**: Resilience
 
-**Why Omitted**: See README "Why NOT Retry on 5xx Server Errors" section. For this challenge, 5xx errors indicate server bugs rather than rate limiting - retrying won't help and could mask upstream issues. Would add with circuit breaker for production if upstream had transient 5xx errors.
+Currently only retries on 429. Could also retry on transient 5xx errors (502, 503, 504).
+
+**Why Omitted**: See README "Why NOT Retry on 5xx Server Errors" section. For this challenge, 5xx errors indicate server bugs rather than rate limiting.
 
 ---
 
 ## High Priority
 
-Items that should be addressed before production deployment.
+Items to address before production deployment.
 
 ### Testing Gaps
 
-#### 3. Integration Tests with MockMvc
-**Source**: PR #8
-**Category**: Testing
+| Item | Source | Description |
+|------|--------|-------------|
+| Integration Tests with MockMvc | PR #8 | Use `@WebMvcTest` to verify full request/response cycle |
+| Correlation ID Filter Tests | PR #8 | Test header presence, blank values, MDC cleanup |
+| Empty Validation Errors Test | PR #7 | Test fallback branch when no field errors |
+| Retry Behavior Integration Test | PR #5 | Verify 429 → 429 → success makes exactly 3 requests |
+| Timeout Scenario Tests | PR #5 | Test connection and read timeout with WireMock delays |
 
-Use `@WebMvcTest` to verify full request/response cycle including validation, serialization, and content negotiation.
+### Architecture & Code Quality
 
-#### 4. Correlation ID Filter Tests
-**Source**: PR #8
-**Category**: Testing
-
-Test scenarios:
-- Header present/missing
-- Blank value handling
-- Response header inclusion
-- MDC cleanup after request
-
-#### 5. Add Test for Empty Validation Errors
-**Source**: PR #7
-**Category**: Testing
-
-Test the "Validation failed" fallback branch when `MethodArgumentNotValidException` has no field errors.
-
-#### 6. Retry Behavior Integration Test
-**Source**: PR #5
-**Category**: Testing
-
-Add test that returns 429 twice then success, verifying exactly 3 requests were made.
-
-#### 7. Timeout Scenario Tests
-**Source**: PR #5
-**Category**: Testing
-
-Test connection timeout and read timeout behavior with WireMock delays.
-
-### Architecture
-
-#### 8. Use Locale.ROOT for Case-Insensitive Matching
-**Source**: PR #6
-**Category**: Code Quality
-**Status**: ❌ Not Implemented
-
-`toLowerCase()` without Locale can produce unexpected results (e.g., Turkish 'i' → 'İ').
-
-```java
-// Before
-searchString.toLowerCase()
-
-// After
-searchString.toLowerCase(Locale.ROOT)
-```
-
-**Files**: `EmployeeService.java:31`
-
-#### 9. Filter Null Names in getTopTenHighestEarningNames
-**Source**: PR #6
-**Category**: Code Quality
-
-After filtering null salaries, result could still have employees with null names.
-
-```java
-.filter(e -> e.name() != null)
-.map(Employee::name)
-```
-
-#### 10. Extract Duplicated Error Handling
-**Source**: PR #5
-**Category**: Code Quality
-
-Error handling logic is duplicated across all four adapter methods. Extract to reusable method.
-
-#### 11. Make Retry-After Header Configurable
-**Source**: PR #7
-**Category**: Configuration
-
-`"5"` seconds is hardcoded. Externalize to `application.yml`.
-
-#### 12. Catch-All Exception Handler
-**Source**: PR #8
-**Category**: Architecture
-
-Prevent leaking internal details for unexpected exceptions.
-
-```java
-@ExceptionHandler(Exception.class)
-public ResponseEntity<ErrorResponse> handleUnexpected(Exception ex) {
-    logger.error("Unexpected error", ex);
-    return ResponseEntity.status(500)
-        .body(ErrorResponse.of(500, "Internal Server Error", "An unexpected error occurred"));
-}
-```
+| Item | Source | Description |
+|------|--------|-------------|
+| Use Locale.ROOT | PR #6 | `toLowerCase()` without Locale causes issues (Turkish 'i' → 'İ'). File: `EmployeeService.java:31` |
+| Filter Null Names | PR #6 | `getTopTenHighestEarningNames` could return null names |
+| Extract Duplicated Error Handling | PR #5 | Error handling duplicated across adapter methods |
+| Make Retry-After Configurable | PR #7 | `"5"` seconds hardcoded, externalize to config |
+| Catch-All Exception Handler | PR #8 | Prevent leaking internal details for unexpected exceptions |
 
 ---
 
@@ -195,210 +94,93 @@ Items to address in upcoming development cycles.
 
 ### Observability & Monitoring
 
-#### 13. Enable Cache Metrics
-**Source**: PR #11
-**Category**: Performance
-**Status**: ❌ Not Implemented
-
-Add `.recordStats()` to CacheConfig for Micrometer metrics.
-
-```java
-Caffeine.newBuilder()
-    .recordStats()  // Enable statistics
-    .expireAfterWrite(...)
-```
-
-#### 14. Add Micrometer Metrics for HTTP Client
-**Source**: PR #5
-**Category**: Observability
-
-Track request counts per operation, error rates, and response times.
-
-#### 15. Add Cache Eviction Logging
-**Source**: PR #11
-**Category**: Observability
-
-Currently only "Cache MISS" is logged. Add logging for evictions.
+| Item | Source | Description |
+|------|--------|-------------|
+| Enable Cache Metrics | PR #11 | Add `.recordStats()` to CacheConfig for Micrometer |
+| Micrometer Metrics for HTTP Client | PR #5 | Track request counts, error rates, response times |
+| Cache Eviction Logging | PR #11 | Currently only "Cache MISS" is logged |
 
 ### Testing Enhancements
 
-#### 16. Test for Concurrent Access
-**Source**: PR #11
-**Category**: Testing
-
-Verify cache thread safety under concurrent load.
-
-#### 17. Test for TTL Expiration
-**Source**: PR #11
-**Category**: Testing
-
-Use Caffeine's `Ticker` for time-based testing.
-
-#### 18. Test searchByName Uses Cached Data
-**Source**: PR #11
-**Category**: Testing
-
-Verify that `searchByName()` benefits from caching.
-
-#### 19. Null Salary Edge Case Tests
-**Source**: PR #6
-**Category**: Testing
-
-Test `getHighestSalary` and `getTopTenHighestEarningNames` with null salaries.
-
-#### 20. Validation Boundary Tests
-**Source**: PR #8
-**Category**: Testing
-
-Test age = 16, age = 75, salary = 1 (boundary values).
-
-#### 21. Malformed JSON Response Test
-**Source**: PR #5
-**Category**: Testing
-
-Test handling of malformed JSON from external API.
+| Item | Source | Description |
+|------|--------|-------------|
+| Concurrent Access Test | PR #11 | Verify cache thread safety under load |
+| TTL Expiration Test | PR #11 | Use Caffeine's `Ticker` for time-based testing |
+| searchByName Cache Test | PR #11 | Verify method benefits from caching |
+| Null Salary Edge Cases | PR #6 | Test with null salaries in highest salary methods |
+| Validation Boundary Tests | PR #8 | Test age = 16/75, salary = 1 |
+| Malformed JSON Response Test | PR #5 | Test handling of malformed JSON from API |
 
 ### Code Quality
 
-#### 22. Return All Validation Errors
-**Source**: PR #7
-**Category**: Code Quality
+| Item | Source | Description |
+|------|--------|-------------|
+| Return All Validation Errors | PR #7 | Currently only returns first field error |
+| Standardize on SLF4J | PR #8 | Mixing Log4j2 and SLF4J |
+| Use Collectors.joining | PR #8 | Replace `.reduce()` with `.collect(Collectors.joining(", "))` |
 
-Currently only returns first field error. Consider returning all.
+### Documentation
 
-#### 23. Standardize on SLF4J
-**Source**: PR #8
-**Category**: Code Quality
-
-Mixing Log4j2 and SLF4J. Use SLF4J facade throughout.
-
-#### 24. Use Collectors.joining for Validation Errors
-**Source**: PR #8
-**Category**: Code Quality
-
-```java
-// Before
-.reduce((a, b) -> a + ", " + b).orElse("Validation failed")
-
-// After
-.collect(Collectors.joining(", "))
-```
-
-### Documentation & DX
-
-#### 25. Add OpenAPI/Swagger Documentation
-**Source**: Task Master #11
-**Category**: Documentation
-**Complexity**: 3 points
-
-Integrate springdoc-openapi to provide automatic API documentation with interactive Swagger UI:
-
-- Add `springdoc-openapi-starter-webmvc-ui` dependency
-- Create `OpenApiConfig` with API metadata
-- Add `@Operation` and `@ApiResponse` annotations to controller
-- Add `@Schema` annotations to domain models with examples
-- Accessible at `/swagger-ui.html` and `/api-docs`
-
-**Why Medium**: Improves evaluator experience and API discoverability for coding challenge review.
-
-#### 26. Add Spring Boot Actuator Health Endpoints
-**Source**: Task Master #12
-**Category**: Observability
-**Complexity**: 3 points
-
-Add production-readiness features with health checks:
-
-- Add `spring-boot-starter-actuator` dependency
-- Expose `/actuator/health` and `/actuator/info` endpoints
-- Create custom `MockServerHealthIndicator` to check downstream connectivity
-- Configure health check details visibility
-
-**Why Medium**: Demonstrates production-readiness practices for coding challenge.
-
-#### 27. Document Race Condition in deleteById
-**Source**: PR #6
-**Category**: Documentation
-
-Time-of-check to time-of-use issue between find and delete operations.
-
-#### 28. Document Why 0 is Default for Highest Salary
-**Source**: PR #6
-**Category**: Documentation
-
-Clarify business requirement for empty employee list case.
+| Item | Source | Description |
+|------|--------|-------------|
+| OpenAPI/Swagger | Task Master #11 | Add springdoc-openapi for API documentation |
+| Actuator Health Endpoints | Task Master #12 | Add `/actuator/health` with custom health indicator |
+| Document deleteById Race Condition | PR #6 | Time-of-check to time-of-use issue |
+| Document Default Salary Behavior | PR #6 | Clarify why 0 is default for empty list |
 
 ---
 
-## Low Priority / Future Enhancements
+## Low Priority
 
-These items improve code quality but are not blocking issues.
+Nice-to-have improvements.
 
 ### Code Organization
-
 - Extract magic number `10` to `TOP_EARNERS_LIMIT` constant
-- Extract cache key `'all'` to constant
-- Extract cache name `"employees"` to prevent drift
-- Add `@DisplayName` annotations for test readability
-- Use `@Nested` classes for test organization
+- Extract cache key `'all'` and cache name `"employees"` to constants
+- Add `@DisplayName` and `@Nested` for test organization
 - Consider `@Slf4j` Lombok annotation
 
-### Testing Improvements
-
-- Use parameterized tests for similar test patterns
+### Testing
+- Use parameterized tests for similar patterns
 - Create test data builder pattern
-- Add test fixtures directory structure
 - Consider property-based testing with jqwik
 
-### Logging Enhancements
-
+### Logging
 - Use structured logging with key-value pairs
 - Configure log pattern for MDC correlation ID
 - Add null safety for MDC.get("correlationId")
 
 ### HTTP Semantics
+- Consider 204 No Content for DELETE
+- Add path field to ErrorResponse
 
-- Consider 204 No Content for DELETE operations
-- Add path field to ErrorResponse for debugging
-
-### Security Considerations
-
+### Security
 - Add input length validation for search strings
 - Consider rate limiting at API layer
 - Log sanitization for user input
 
 ### Performance
-
 - Consider cache warming on startup
 - Remove misleading `@Retryable` on `findById`
 - Add explicit timeout to `.block()` calls
 
 ---
 
-## Implementation Notes
+## Already Implemented
 
-### Already Implemented (Removed from List)
+These items from PR reviews have been addressed:
 
-The following suggestions from PR reviews have already been addressed:
-
-- ✅ Make `webClient` field final (PR #9)
-- ✅ Simplify CGLIB proxy constructor (PR #9)
-- ✅ Return 201 Created for POST (PR #8)
-- ✅ Add ServiceUnavailableException handler (PR #7)
-- ✅ Add correlation ID propagation tests (PR #9)
-- ✅ Use WireMock dynamic port (PR #9)
-- ✅ Add timeout behavior test (PR #9)
-- ✅ Add concurrent request test (PR #9)
-- ✅ Add cache eviction verification test (PR #9)
-- ✅ Add malformed JSON handling tests (PR #9)
-- ✅ Add delete race condition test (PR #9)
-- ❌ 5xx error retry support (deliberately omitted - see README)
-
-### Suggested Implementation Order
-
-1. **Critical (8+ points)**: Circuit breaker, 5xx retry (if production requires it)
-2. **High Priority (5-8 points)**: Testing gaps, Locale.ROOT fix, error handling
-3. **Medium Priority (3-5 points)**: Observability, remaining tests, documentation
-4. **Backlog (1-2 points)**: Low priority items as capacity allows
+- Make `webClient` field final (PR #9)
+- Simplify CGLIB proxy constructor (PR #9)
+- Return 201 Created for POST (PR #8)
+- Add ServiceUnavailableException handler (PR #7)
+- Add correlation ID propagation tests (PR #9)
+- Use WireMock dynamic port (PR #9)
+- Add timeout behavior test (PR #9)
+- Add concurrent request test (PR #9)
+- Add cache eviction verification test (PR #9)
+- Add malformed JSON handling tests (PR #9)
+- Add delete race condition test (PR #9)
 
 ---
 
@@ -408,9 +190,8 @@ When addressing items from this list:
 
 1. Create a branch: `fix/improvement-name` or `feat/feature-name`
 2. Reference this document in PR description
-3. Mark item as completed with PR number
-4. Update this document to remove addressed items
+3. Update this document to remove addressed items
 
 ---
 
-*This document is auto-generated from PR review analysis. Last analyzed PRs: #5, #6, #7, #8, #9, #11*
+*Generated from PR review analysis. Last analyzed PRs: #5, #6, #7, #8, #9, #11*
