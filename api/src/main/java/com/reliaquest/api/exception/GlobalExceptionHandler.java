@@ -28,11 +28,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse.of(404, "Not Found", ex.getMessage()));
     }
 
-    @ExceptionHandler(EmployeeDeletionException.class)
-    public ResponseEntity<ErrorResponse> handleDeletionFailure(EmployeeDeletionException ex) {
-        logger.error("Employee deletion failed correlationId={}: {}", getCorrelationId(), ex.getMessage());
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ErrorResponse.of(500, "Internal Server Error", ex.getMessage()));
+    @ExceptionHandler(EmployeeServiceException.class)
+    public ResponseEntity<ErrorResponse> handleServiceException(EmployeeServiceException ex) {
+        HttpStatus status = ex.getStatus();
+        logger.error("Service error (status {}) correlationId={}: {}", status.value(), getCorrelationId(), ex.getMessage());
+
+        ResponseEntity.BodyBuilder builder = ResponseEntity.status(status);
+        if (status == HttpStatus.SERVICE_UNAVAILABLE) {
+            builder.header("Retry-After", String.valueOf(retryAfterSeconds));
+        }
+
+        return builder.body(ErrorResponse.of(status.value(), status.getReasonPhrase(), ex.getMessage()));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -51,26 +57,6 @@ public class GlobalExceptionHandler {
                         .collect(Collectors.joining("; "));
         logger.warn("Validation failed correlationId={}: {}", getCorrelationId(), message);
         return ResponseEntity.badRequest().body(ErrorResponse.of(400, "Bad Request", message));
-    }
-
-    @ExceptionHandler(ExternalServiceException.class)
-    public ResponseEntity<ErrorResponse> handleExternalService(ExternalServiceException ex) {
-        logger.error(
-                "External service error (status {}) correlationId={}: {}",
-                ex.getStatusCode(),
-                getCorrelationId(),
-                ex.getMessage());
-        String message = String.format(
-                "External service error (status %d): %s", ex.getStatusCode(), ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(ErrorResponse.of(502, "Bad Gateway", message));
-    }
-
-    @ExceptionHandler(ServiceUnavailableException.class)
-    public ResponseEntity<ErrorResponse> handleServiceUnavailable(ServiceUnavailableException ex) {
-        logger.error("Service unavailable correlationId={}: {}", getCorrelationId(), ex.getMessage());
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                .header("Retry-After", String.valueOf(retryAfterSeconds))
-                .body(ErrorResponse.of(503, "Service Unavailable", ex.getMessage()));
     }
 
     @ExceptionHandler(TooManyRequestsException.class)

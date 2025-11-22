@@ -34,15 +34,40 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void handleDeletionFailure_shouldReturn500WithMessage() {
-        var exception = new EmployeeDeletionException("Failed to delete employee");
+    void handleServiceException_shouldReturn500ForInternalServerError() {
+        var exception = new EmployeeServiceException("Failed to delete employee", HttpStatus.INTERNAL_SERVER_ERROR);
 
-        ResponseEntity<ErrorResponse> response = handler.handleDeletionFailure(exception);
+        ResponseEntity<ErrorResponse> response = handler.handleServiceException(exception);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(response.getBody().status()).isEqualTo(500);
         assertThat(response.getBody().error()).isEqualTo("Internal Server Error");
         assertThat(response.getBody().message()).isEqualTo("Failed to delete employee");
+    }
+
+    @Test
+    void handleServiceException_shouldReturn502ForBadGateway() {
+        var exception = new EmployeeServiceException("Connection refused", HttpStatus.BAD_GATEWAY);
+
+        ResponseEntity<ErrorResponse> response = handler.handleServiceException(exception);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+        assertThat(response.getBody().status()).isEqualTo(502);
+        assertThat(response.getBody().error()).isEqualTo("Bad Gateway");
+        assertThat(response.getBody().message()).isEqualTo("Connection refused");
+    }
+
+    @Test
+    void handleServiceException_shouldReturn503WithRetryAfterHeader() {
+        var exception = new EmployeeServiceException("Service temporarily unavailable", HttpStatus.SERVICE_UNAVAILABLE);
+
+        ResponseEntity<ErrorResponse> response = handler.handleServiceException(exception);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(response.getHeaders().getFirst("Retry-After")).isEqualTo("5");
+        assertThat(response.getBody().status()).isEqualTo(503);
+        assertThat(response.getBody().error()).isEqualTo("Service Unavailable");
+        assertThat(response.getBody().message()).isEqualTo("Service temporarily unavailable");
     }
 
     @Test
@@ -83,31 +108,6 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody().status()).isEqualTo(400);
         assertThat(response.getBody().error()).isEqualTo("Bad Request");
         assertThat(response.getBody().message()).isEqualTo("Validation failed");
-    }
-
-    @Test
-    void handleExternalService_shouldReturn502WithStatusCodeAndMessage() {
-        var exception = new ExternalServiceException("Connection refused", 500);
-
-        ResponseEntity<ErrorResponse> response = handler.handleExternalService(exception);
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
-        assertThat(response.getBody().status()).isEqualTo(502);
-        assertThat(response.getBody().error()).isEqualTo("Bad Gateway");
-        assertThat(response.getBody().message()).contains("status 500").contains("Connection refused");
-    }
-
-    @Test
-    void handleServiceUnavailable_shouldReturn503WithRetryAfterHeader() {
-        var exception = new ServiceUnavailableException("Service temporarily unavailable");
-
-        ResponseEntity<ErrorResponse> response = handler.handleServiceUnavailable(exception);
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
-        assertThat(response.getHeaders().getFirst("Retry-After")).isEqualTo("5");
-        assertThat(response.getBody().status()).isEqualTo(503);
-        assertThat(response.getBody().error()).isEqualTo("Service Unavailable");
-        assertThat(response.getBody().message()).isEqualTo("Service temporarily unavailable");
     }
 
     @Test

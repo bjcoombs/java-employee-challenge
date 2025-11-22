@@ -8,9 +8,9 @@ import static org.mockito.Mockito.when;
 
 import com.reliaquest.api.domain.CreateEmployeeRequest;
 import com.reliaquest.api.domain.Employee;
-import com.reliaquest.api.domain.EmployeeService;
 import com.reliaquest.api.exception.EmployeeNotFoundException;
 import com.reliaquest.api.exception.TooManyRequestsException;
+import com.reliaquest.api.service.EmployeeService;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
