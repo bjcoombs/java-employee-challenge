@@ -9,7 +9,7 @@ This document consolidates unimplemented suggestions from PR code reviews into a
 - [Summary](#summary)
 - [Critical Priority](#critical-priority)
   - [1. Circuit Breaker Pattern](#1-circuit-breaker-pattern)
-  - [2. Add 5xx Error Retry Support](#2-add-5xx-error-retry-support) ✅
+  - [2. Add 5xx Error Retry Support](#2-add-5xx-error-retry-support) ❌ (Deliberately omitted - see README)
 - [High Priority](#high-priority)
   - [Testing Gaps](#testing-gaps)
   - [Architecture](#architecture)
@@ -30,7 +30,7 @@ This document consolidates unimplemented suggestions from PR code reviews into a
 
 | Priority | Count | Status |
 |----------|-------|--------|
-| Critical | 1 | Needs immediate attention |
+| Critical | 2 | Needs immediate attention (circuit breaker + 5xx retry if needed) |
 | High | 12 | Should address before production |
 | Medium | 27 | Address as capacity allows |
 | Low | 40+ | Nice-to-have / Future enhancements |
@@ -57,17 +57,17 @@ public List<Employee> findAll() { ... }
 
 ---
 
-### ~~2. Add 5xx Error Retry Support~~
+### 2. Add 5xx Error Retry Support
 **Source**: PR #5
 **Category**: Resilience
-**Status**: ✅ Implemented (PR #14)
+**Status**: ❌ Deliberately Omitted
 
-~~Currently only retries on 429 (Too Many Requests). Should also retry on transient 5xx errors:~~
-- ~~502 Bad Gateway~~
-- ~~503 Service Unavailable~~
-- ~~504 Gateway Timeout~~
+Currently only retries on 429 (Too Many Requests). Could also retry on transient 5xx errors:
+- 502 Bad Gateway
+- 503 Service Unavailable
+- 504 Gateway Timeout
 
-Now retries on all 5xx errors via `RetryableServerException` with full integration test coverage.
+**Why Omitted**: See README "Why NOT Retry on 5xx Server Errors" section. For this challenge, 5xx errors indicate server bugs rather than rate limiting - retrying won't help and could mask upstream issues. Would add with circuit breaker for production if upstream had transient 5xx errors.
 
 ---
 
@@ -372,11 +372,11 @@ The following suggestions from PR reviews have already been addressed:
 - ✅ Add cache eviction verification test (PR #9)
 - ✅ Add malformed JSON handling tests (PR #9)
 - ✅ Add delete race condition test (PR #9)
-- ✅ Add 5xx error retry support (PR #14)
+- ❌ 5xx error retry support (deliberately omitted - see README)
 
 ### Suggested Implementation Order
 
-1. **Critical (8+ points)**: Circuit breaker *(5xx retry support now complete)*
+1. **Critical (8+ points)**: Circuit breaker, 5xx retry (if production requires it)
 2. **High Priority (5-8 points)**: Testing gaps, Locale.ROOT fix, error handling
 3. **Medium Priority (3-5 points)**: Observability, remaining tests, documentation
 4. **Backlog (1-2 points)**: Low priority items as capacity allows
