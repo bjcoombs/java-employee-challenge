@@ -100,6 +100,14 @@ This solution was built incrementally through a series of focused PRs:
 | [#10](https://github.com/bjcoombs/java-employee-challenge/pull/10) | API startup and testing documentation |
 | [#11](https://github.com/bjcoombs/java-employee-challenge/pull/11) | In-memory caching for getAllEmployees endpoint |
 
+### Future Improvements
+
+See [FUTURE_IMPROVEMENTS.md](FUTURE_IMPROVEMENTS.md) for a comprehensive list of:
+- Critical issues to address before production
+- Technical debt from PR code reviews
+- Enhancement opportunities
+- Suggested implementation order
+
 ---
 
 ## Getting Started
