@@ -2,16 +2,16 @@ package com.reliaquest.api.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import tools.jackson.databind.json.JsonMapper;
 
 class EmployeeTest {
 
-    private final JsonMapper jsonMapper = JsonMapper.builder().build();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    void shouldSerializeWithEmployeePrefix() throws Exception {
+    void shouldSerialize() throws Exception {
         var employee = new Employee(
                 UUID.fromString("123e4567-e89b-12d3-a456-426614174000"),
                 "John Doe",
@@ -20,31 +20,31 @@ class EmployeeTest {
                 "Developer",
                 "john@example.com");
 
-        String json = jsonMapper.writeValueAsString(employee);
+        String json = objectMapper.writeValueAsString(employee);
 
         assertThat(json).contains("\"id\":");
-        assertThat(json).contains("\"employee_name\":\"John Doe\"");
-        assertThat(json).contains("\"employee_salary\":50000");
-        assertThat(json).contains("\"employee_age\":30");
-        assertThat(json).contains("\"employee_title\":\"Developer\"");
-        assertThat(json).contains("\"employee_email\":\"john@example.com\"");
+        assertThat(json).contains("\"name\":\"John Doe\"");
+        assertThat(json).contains("\"salary\":50000");
+        assertThat(json).contains("\"age\":30");
+        assertThat(json).contains("\"title\":\"Developer\"");
+        assertThat(json).contains("\"email\":\"john@example.com\"");
     }
 
     @Test
-    void shouldDeserializeWithEmployeePrefix() throws Exception {
+    void shouldDeserialize() throws Exception {
         String json =
                 """
                 {
                     "id": "123e4567-e89b-12d3-a456-426614174000",
-                    "employee_name": "Jane Doe",
-                    "employee_salary": 60000,
-                    "employee_age": 25,
-                    "employee_title": "Manager",
-                    "employee_email": "jane@example.com"
+                    "name": "Jane Doe",
+                    "salary": 60000,
+                    "age": 25,
+                    "title": "Manager",
+                    "email": "jane@example.com"
                 }
                 """;
 
-        Employee employee = jsonMapper.readValue(json, Employee.class);
+        Employee employee = objectMapper.readValue(json, Employee.class);
 
         assertThat(employee.id()).isEqualTo(UUID.fromString("123e4567-e89b-12d3-a456-426614174000"));
         assertThat(employee.name()).isEqualTo("Jane Doe");
