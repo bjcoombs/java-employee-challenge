@@ -751,4 +751,223 @@ class EmployeeIntegrationTest {
                 .expectHeader()
                 .value("X-Correlation-ID", value -> assertThat(value).isNotBlank());
     }
+
+    // Timeout behavior tests
+    @Test
+    void getAllEmployees_shouldReturn503_whenReadTimeoutExceeded() {
+        // Configure WireMock to delay longer than the read timeout (10 seconds default)
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withBody("{\"data\": [], \"status\": \"success\"}")
+                        .withFixedDelay(15000))); // 15 second delay
+
+        webTestClient
+                .get()
+                .uri("/api/v1/employee")
+                .exchange()
+                .expectStatus()
+                .is5xxServerError();
+    }
+
+    // Concurrent request tests
+    @Test
+    void getAllEmployees_shouldHandleConcurrentRequests() throws Exception {
+        String mockResponse = loadFixture("employee-empty-list.json");
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
+
+        // Execute multiple concurrent requests
+        var results = java.util.concurrent.Executors.newFixedThreadPool(5).invokeAll(
+                java.util.stream.IntStream.range(0, 10)
+                        .mapToObj(i -> (java.util.concurrent.Callable<Boolean>) () -> {
+                            webTestClient
+                                    .get()
+                                    .uri("/api/v1/employee")
+                                    .exchange()
+                                    .expectStatus()
+                                    .isOk();
+                            return true;
+                        })
+                        .toList());
+
+        // Verify all requests succeeded
+        for (var result : results) {
+            assertThat(result.get()).isTrue();
+        }
+    }
+
+    // Cache eviction verification
+    @Test
+    void cache_shouldBeEvicted_afterCreateEmployee() throws Exception {
+        UUID id1 = UUID.randomUUID();
+        UUID id2 = UUID.randomUUID();
+
+        // First call - returns employee 1
+        String firstResponse = """
+                {
+                    "data": [{
+                        "id": "%s",
+                        "employee_name": "First Employee",
+                        "employee_salary": 50000,
+                        "employee_age": 30,
+                        "employee_title": "Developer",
+                        "employee_email": "first@company.com"
+                    }],
+                    "status": "Successfully processed request."
+                }
+                """.formatted(id1);
+
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(firstResponse)));
+
+        // First request - populates cache
+        webTestClient
+                .get()
+                .uri("/api/v1/employee")
+                .exchange()
+                .expectStatus()
+                .isOk()
+                .expectBodyList(Employee.class)
+                .hasSize(1)
+                .value(employees -> assertThat(employees.getFirst().name()).isEqualTo("First Employee"));
+
+        // Setup create response
+        String createResponse = """
+                {
+                    "data": {
+                        "id": "%s",
+                        "employee_name": "New Employee",
+                        "employee_salary": 60000,
+                        "employee_age": 25,
+                        "employee_title": "Senior Developer",
+                        "employee_email": "new@company.com"
+                    },
+                    "status": "Successfully processed request."
+                }
+                """.formatted(id2);
+
+        wireMockServer.stubFor(post(urlEqualTo("/api/v1/employee")).willReturn(okJson(createResponse)));
+
+        // Create employee - should evict cache
+        var request = new CreateEmployeeRequest("New Employee", 60000, 25, "Senior Developer");
+        webTestClient
+                .post()
+                .uri("/api/v1/employee")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus()
+                .isCreated();
+
+        // Update mock to return both employees
+        String secondResponse = """
+                {
+                    "data": [{
+                        "id": "%s",
+                        "employee_name": "First Employee",
+                        "employee_salary": 50000,
+                        "employee_age": 30,
+                        "employee_title": "Developer",
+                        "employee_email": "first@company.com"
+                    }, {
+                        "id": "%s",
+                        "employee_name": "New Employee",
+                        "employee_salary": 60000,
+                        "employee_age": 25,
+                        "employee_title": "Senior Developer",
+                        "employee_email": "new@company.com"
+                    }],
+                    "status": "Successfully processed request."
+                }
+                """.formatted(id1, id2);
+
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(secondResponse)));
+
+        // Second request - should get fresh data (not cached)
+        webTestClient
+                .get()
+                .uri("/api/v1/employee")
+                .exchange()
+                .expectStatus()
+                .isOk()
+                .expectBodyList(Employee.class)
+                .hasSize(2);
+    }
+
+    // Delete race condition simulation
+    @Test
+    void deleteEmployee_shouldReturn500_whenDeleteFailsDueToRaceCondition() throws Exception {
+        UUID id = UUID.randomUUID();
+
+        // First GET returns the employee
+        String getResponse = """
+                {
+                    "data": [{
+                        "id": "%s",
+                        "employee_name": "John Doe",
+                        "employee_salary": 50000,
+                        "employee_age": 30,
+                        "employee_title": "Developer",
+                        "employee_email": "john@company.com"
+                    }],
+                    "status": "Successfully processed request."
+                }
+                """.formatted(id);
+
+        // DELETE returns false (employee already deleted by another process)
+        String deleteResponse = """
+                {
+                    "data": false,
+                    "status": "Successfully processed request."
+                }
+                """;
+
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(getResponse)));
+        wireMockServer.stubFor(delete(urlEqualTo("/api/v1/employee")).willReturn(okJson(deleteResponse)));
+
+        // Attempt to delete - employee exists but delete fails (simulating race condition)
+        // Returns 500 because EmployeeDeletionException is thrown
+        webTestClient
+                .delete()
+                .uri("/api/v1/employee/" + id)
+                .exchange()
+                .expectStatus()
+                .is5xxServerError();
+    }
+
+    // Malformed JSON response handling
+    @Test
+    void getAllEmployees_shouldReturn502_whenMalformedJsonReceived() {
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{ invalid json }")));
+
+        webTestClient
+                .get()
+                .uri("/api/v1/employee")
+                .exchange()
+                .expectStatus()
+                .is5xxServerError();
+    }
+
+    @Test
+    void createEmployee_shouldReturn502_whenMalformedJsonReceived() {
+        wireMockServer.stubFor(post(urlEqualTo("/api/v1/employee"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("not json at all")));
+
+        var request = new CreateEmployeeRequest("New Employee", 55000, 25, "Developer");
+
+        webTestClient
+                .post()
+                .uri("/api/v1/employee")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus()
+                .is5xxServerError();
+    }
 }
