@@ -6,9 +6,13 @@
 
 ### Why Retry with Exponential Backoff
 
-The mock server randomly rate-limits requests (429 responses). This is the core technical challenge of the assignment.
+The mock server randomly rate-limits requests (429 responses) with a **30-90 second backoff period**. This is the core technical challenge of the assignment.
 
-**Solution**: Implemented `@Retryable` with exponential backoff (3 attempts, 500ms → 1s → 2s).
+**Solution**: Implemented `@Retryable` with exponential backoff configured to match the server's backoff:
+- **Runtime**: 5 attempts, 10s → 20s → 40s → 80s (covers up to 150s total wait)
+- **Tests**: 3 attempts, 100ms delays (fast execution with WireMock)
+
+**Why different configurations**: The mock server's aggressive rate limiting (30-90s) requires patient retry in production, but tests use WireMock with deterministic responses so can run fast.
 
 **Why this is appropriate**: Rate limiting is explicitly mentioned in the requirements. Retry logic directly addresses the stated problem and demonstrates understanding of real-world resilience patterns.
 
@@ -77,6 +81,8 @@ Between steps 1 and 2, another process could delete or rename the employee.
 | Metrics (Micrometer) | When operating at scale with monitoring | No observability stack to consume the metrics |
 | Distributed tracing | When debugging spans multiple services | Single service, correlation IDs sufficient |
 
+For a complete list of future improvements and technical debt from code reviews, see **[FUTURE_IMPROVEMENTS.md](FUTURE_IMPROVEMENTS.md)**.
+
 ---
 
 ## Solution Overview
@@ -134,10 +140,10 @@ sequenceDiagram
 
         alt 429 Rate Limited
             MockServer-->>Service: 429 Too Many Requests
-            Note over Service: Wait 500ms (backoff)
+            Note over Service: Wait 10s (backoff)
             Service->>MockServer: Retry #1
             MockServer-->>Service: 429 Too Many Requests
-            Note over Service: Wait 1000ms (backoff)
+            Note over Service: Wait 20s (backoff)
             Service->>MockServer: Retry #2
             MockServer-->>Service: 200 OK + data
         else Success
@@ -160,9 +166,10 @@ The service layer handles:
 ### Resilience Features
 
 **Rate Limiting Handling**
-- **Retry**: 3 attempts with exponential backoff (500ms → 1s → 2s)
+- **Retry**: 5 attempts with exponential backoff (10s → 20s → 40s → 80s) to cover 30-90s server backoff
 - **Caching**: In-memory cache for getAllEmployees (30s TTL)
 - **Recovery**: Service unavailable (503) after retry exhaustion
+- **Test config**: Fast retry (100ms delays) with WireMock for deterministic tests
 
 **Error Handling**
 - Correlation IDs in all log entries
@@ -238,8 +245,9 @@ employee:
     connect-timeout: 5s
     read-timeout: 10s
     retry:
-      max-attempts: 3
-      delay: 500
+      # Configured for mock server's 30-90s rate limit backoff
+      max-attempts: 5
+      delay: 10000  # 10 seconds
       multiplier: 2.0
   cache:
     ttl-seconds: 30

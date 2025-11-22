@@ -30,7 +30,7 @@ This document consolidates unimplemented suggestions from PR code reviews into a
 
 | Priority | Count | Status |
 |----------|-------|--------|
-| Critical | 2 | Needs immediate attention (circuit breaker + 5xx retry if needed) |
+| Critical | 3 | Needs immediate attention (circuit breaker, bulkhead, 5xx retry if needed) |
 | High | 12 | Should address before production |
 | Medium | 27 | Address as capacity allows |
 | Low | 40+ | Nice-to-have / Future enhancements |
@@ -57,7 +57,26 @@ public List<Employee> findAll() { ... }
 
 ---
 
-### 2. Add 5xx Error Retry Support
+### 2. Bulkhead Pattern for Request Queueing
+**Source**: Rate limiting analysis
+**Category**: Resilience
+**Status**: ❌ Not Implemented
+
+Add a semaphore/bulkhead to prevent request pile-up when the mock server is rate-limiting. Currently, if one request triggers rate-limiting (30-90s backoff), subsequent requests will also hit the limit and queue up in retry loops.
+
+```java
+@Bulkhead(name = "employeeService", type = Bulkhead.Type.SEMAPHORE)
+@Retryable(...)
+public List<Employee> getAllEmployees() { ... }
+```
+
+**Alternative**: Use Resilience4j bulkhead or simple semaphore to limit concurrent outbound requests.
+
+**Why Critical**: The mock server's aggressive rate limiting (30-90s) combined with exponential backoff means multiple concurrent requests could each wait 150+ seconds. A bulkhead would fail-fast for queued requests rather than overloading the downstream service.
+
+---
+
+### 3. Add 5xx Error Retry Support
 **Source**: PR #5
 **Category**: Resilience
 **Status**: ❌ Deliberately Omitted
