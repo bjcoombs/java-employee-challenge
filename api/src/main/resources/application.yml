@@ -8,7 +8,7 @@ employee:
     read-timeout: 10s
     retry:
       max-attempts: 3
-      delay: 500ms
+      delay: 500  # milliseconds
       multiplier: 2.0
   cache:
     ttl-seconds: 30

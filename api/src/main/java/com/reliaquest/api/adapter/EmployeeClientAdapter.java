@@ -14,6 +14,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
@@ -33,6 +34,7 @@ public class EmployeeClientAdapter implements EmployeePort {
 
     private final WebClient webClient;
 
+    @Autowired
     public EmployeeClientAdapter(WebClient.Builder webClientBuilder, EmployeeClientProperties properties) {
         HttpClient httpClient = HttpClient.create()
                 .responseTimeout(properties.readTimeout())
@@ -46,8 +48,8 @@ public class EmployeeClientAdapter implements EmployeePort {
                 .build();
     }
 
-    // Package-private constructor for CGLIB proxy required by @Retryable
-    EmployeeClientAdapter() {
+    // Required for CGLIB proxy; Objenesis bypasses this constructor at runtime
+    protected EmployeeClientAdapter() {
         this.webClient = null;
     }
 
@@ -69,7 +71,7 @@ public class EmployeeClientAdapter implements EmployeePort {
     @Retryable(
             retryFor = TooManyRequestsException.class,
             maxAttemptsExpression = "#{${employee.client.retry.max-attempts:3}}",
-            backoff = @Backoff(delayExpression = "#{${employee.client.retry.delay:500}}", multiplier = 2))
+            backoff = @Backoff(delayExpression = "#{${employee.client.retry.delay:500}}", multiplierExpression = "#{${employee.client.retry.multiplier:2.0}}"))
     public List<Employee> findAll() {
         String correlationId = getCorrelationId();
         logger.info("Fetching all employees correlationId={}", correlationId);
@@ -101,7 +103,7 @@ public class EmployeeClientAdapter implements EmployeePort {
     @Retryable(
             retryFor = TooManyRequestsException.class,
             maxAttemptsExpression = "#{${employee.client.retry.max-attempts:3}}",
-            backoff = @Backoff(delayExpression = "#{${employee.client.retry.delay:500}}", multiplier = 2))
+            backoff = @Backoff(delayExpression = "#{${employee.client.retry.delay:500}}", multiplierExpression = "#{${employee.client.retry.multiplier:2.0}}"))
     public Employee create(CreateEmployeeRequest request) {
         String correlationId = getCorrelationId();
         logger.info("Creating employee name={} correlationId={}", request.name(), correlationId);
@@ -126,7 +128,7 @@ public class EmployeeClientAdapter implements EmployeePort {
     @Retryable(
             retryFor = TooManyRequestsException.class,
             maxAttemptsExpression = "#{${employee.client.retry.max-attempts:3}}",
-            backoff = @Backoff(delayExpression = "#{${employee.client.retry.delay:500}}", multiplier = 2))
+            backoff = @Backoff(delayExpression = "#{${employee.client.retry.delay:500}}", multiplierExpression = "#{${employee.client.retry.multiplier:2.0}}"))
     public boolean deleteByName(String name) {
         String correlationId = getCorrelationId();
         logger.info("Deleting employee name={} correlationId={}", name, correlationId);
