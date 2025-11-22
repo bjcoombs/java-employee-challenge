@@ -189,6 +189,62 @@ class EmployeeIntegrationTest {
         webTestClient.get().uri("/api/v1/employee/" + id).exchange().expectStatus().isNotFound();
     }
 
+    @Test
+    void getEmployeeById_shouldRetryOn429_andEventuallySucceed() throws Exception {
+        UUID id = UUID.randomUUID();
+        String successResponse = loadFixture("employee-by-id-success.json").formatted(id);
+
+        // First two requests return 429, third succeeds
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee/" + id))
+                .inScenario("getById-retry")
+                .whenScenarioStateIs(Scenario.STARTED)
+                .willReturn(aResponse().withStatus(429).withBody("Rate limited"))
+                .willSetStateTo("first-retry"));
+
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee/" + id))
+                .inScenario("getById-retry")
+                .whenScenarioStateIs("first-retry")
+                .willReturn(aResponse().withStatus(429).withBody("Rate limited"))
+                .willSetStateTo("second-retry"));
+
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee/" + id))
+                .inScenario("getById-retry")
+                .whenScenarioStateIs("second-retry")
+                .willReturn(okJson(successResponse)));
+
+        webTestClient
+                .get()
+                .uri("/api/v1/employee/" + id)
+                .exchange()
+                .expectStatus()
+                .isOk()
+                .expectBody(Employee.class)
+                .value(employee -> assertThat(employee.id()).isEqualTo(id));
+
+        wireMockServer.verify(3, getRequestedFor(urlEqualTo("/api/v1/employee/" + id)));
+    }
+
+    @Test
+    void getEmployeeById_shouldReturn503WithRetryAfter_whenAllRetriesExhausted() {
+        UUID id = UUID.randomUUID();
+
+        // All requests return 429
+        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee/" + id))
+                .willReturn(aResponse().withStatus(429).withBody("Rate limited")));
+
+        webTestClient
+                .get()
+                .uri("/api/v1/employee/" + id)
+                .exchange()
+                .expectStatus()
+                .isEqualTo(503)
+                .expectHeader()
+                .exists("Retry-After");
+
+        // Verify all retry attempts were made (3 attempts)
+        wireMockServer.verify(3, getRequestedFor(urlEqualTo("/api/v1/employee/" + id)));
+    }
+
     // GET /api/v1/employee/highestSalary - Get highest salary
     @Test
     void getHighestSalary_shouldReturnHighestSalary() throws Exception {
@@ -364,9 +420,15 @@ class EmployeeIntegrationTest {
     @Test
     void deleteEmployee_shouldReturn404_whenNotFound() throws Exception {
         UUID id = UUID.randomUUID();
-        String mockResponse = loadFixture("employee-empty-list.json");
+        String mockResponse = loadFixture("employee-by-id-not-found.json");
 
-        wireMockServer.stubFor(get(urlEqualTo("/api/v1/employee")).willReturn(okJson(mockResponse)));
+        // getById now uses direct endpoint, so stub that with 404
+        wireMockServer.stubFor(
+                get(urlEqualTo("/api/v1/employee/" + id))
+                        .willReturn(aResponse()
+                                .withStatus(404)
+                                .withHeader("Content-Type", "application/json")
+                                .withBody(mockResponse)));
 
         webTestClient.delete().uri("/api/v1/employee/" + id).exchange().expectStatus().isNotFound();
     }
