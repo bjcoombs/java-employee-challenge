@@ -1,17 +1,38 @@
-### Get all employees
+# Employee API - Manual Testing
+#
+# These requests are for use with IntelliJ IDEA's HTTP Client.
+# Run ./gradlew api:bootRun first (requires mock server on 8112).
+#
+# Usage:
+# 1. Click the green play button next to any request
+# 2. Use "Run with..." to select environment (dev, test)
+# 3. Variables like {{employeeId}} are extracted from responses
+#
+# Tip: Run "Get all employees" first to populate {{employeeId}}
+
+### Get all employees (run first to get valid employee IDs)
 GET http://localhost:8111/api/v1/employee
 Accept: application/json
+
+> {%
+    if (response.body.length > 0) {
+        client.global.set("employeeId", response.body[0].id);
+        client.global.set("employeeName", response.body[0].name);
+        client.log("Stored employeeId: " + response.body[0].id);
+        client.log("Stored employeeName: " + response.body[0].name);
+    }
+%}
 
 ###
 
 ### Search employees by name
-GET http://localhost:8111/api/v1/employee/search/John
+GET http://localhost:8111/api/v1/employee/search/{{employeeName}}
 Accept: application/json
 
 ###
 
-### Get employee by ID (replace with valid UUID)
-GET http://localhost:8111/api/v1/employee/123e4567-e89b-12d3-a456-426614174000
+### Get employee by ID (uses ID from previous request)
+GET http://localhost:8111/api/v1/employee/{{employeeId}}
 Accept: application/json
 
 ###
@@ -40,9 +61,23 @@ Accept: application/json
   "title": "Software Engineer"
 }
 
+> {%
+    if (response.body && response.body.id) {
+        client.global.set("newEmployeeId", response.body.id);
+        client.global.set("newEmployeeName", response.body.name);
+        client.log("Created employee: " + response.body.id);
+    }
+%}
+
 ###
 
-### Create employee with validation error (invalid age)
+### Delete the created employee
+DELETE http://localhost:8111/api/v1/employee/{{newEmployeeId}}
+Accept: application/json
+
+###
+
+### Create employee with validation error (invalid age < 16)
 POST http://localhost:8111/api/v1/employee
 Content-Type: application/json
 Accept: application/json
@@ -56,13 +91,7 @@ Accept: application/json
 
 ###
 
-### Delete employee by ID (replace with valid UUID)
-DELETE http://localhost:8111/api/v1/employee/123e4567-e89b-12d3-a456-426614174000
-Accept: application/json
-
-###
-
-### Test invalid UUID format
+### Test invalid UUID format (expects 400)
 GET http://localhost:8111/api/v1/employee/invalid-uuid
 Accept: application/json
 
