@@ -1,5 +1,30 @@
 # ReliaQuest Coding Challenge - Solution
 
+## Table of Contents
+
+- [Solution Overview](#solution-overview)
+  - [Key Architectural Decisions](#key-architectural-decisions)
+  - [Architecture](#architecture)
+  - [Resilience Features](#resilience-features)
+  - [Implementation Details](#implementation-details)
+  - [Development History](#development-history)
+  - [Future Improvements](#future-improvements)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Quick Start with Doctor Script](#quick-start-with-doctor-script)
+  - [Running the Application Manually](#running-the-application-manually)
+  - [Running Tests](#running-tests)
+  - [Code Formatting](#code-formatting)
+- [API Reference](#api-reference)
+  - [Endpoints to Implement](#endpoints-to-implement-api-module)
+  - [Mock Employee API Endpoints](#mock-employee-api-endpoints-server-module)
+- [Technical Notes](#technical-notes)
+  - [Mock Server Behavior](#mock-server-behavior)
+  - [Known Limitations](#known-limitations)
+  - [Configuration](#configuration)
+
+---
+
 ## Solution Overview
 
 This implementation delivers a production-ready REST API that consumes the Mock Employee API, with emphasis on **clean architecture**, **resilience patterns**, and **comprehensive testing**.
@@ -82,6 +107,17 @@ graph TB
 - **Unit Tests**: Service, client adapter, mapper, controller, exception handler, filter
 - **Integration Tests**: WireMock-based tests verifying retry behavior, error handling, and full HTTP cycles
 - **Manual Testing**: HTTP request file at `api/src/test/http/employee-api.http`
+
+**Why WireMock instead of the Mock Server?**
+
+The integration tests use WireMock rather than the bundled mock server for several reasons:
+
+1. **Deterministic behavior**: The mock server randomly rate-limits requests, which would make tests flaky and unpredictable in CI
+2. **Precise control**: WireMock allows us to test specific scenarios (429 responses, timeouts, malformed JSON) that the mock server cannot reliably reproduce
+3. **Test isolation**: Each test can configure exact responses without affecting other tests
+4. **Industry standard**: Using HTTP mocking libraries for integration tests is standard practice for testing HTTP clients
+
+The mock server remains valuable for manual testing and exploratory development where realistic, varied behavior is beneficial.
 
 ### Development History
 

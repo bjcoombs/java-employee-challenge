@@ -5,6 +5,7 @@ import com.reliaquest.api.domain.CreateEmployeeRequest;
 import com.reliaquest.api.domain.Employee;
 import com.reliaquest.api.domain.port.EmployeePort;
 import com.reliaquest.api.exception.ExternalServiceException;
+import com.reliaquest.api.exception.RetryableServerException;
 import com.reliaquest.api.exception.ServiceUnavailableException;
 import com.reliaquest.api.exception.TooManyRequestsException;
 import java.util.List;
@@ -69,7 +70,7 @@ public class EmployeeClientAdapter implements EmployeePort {
 
     @Override
     @Retryable(
-            retryFor = TooManyRequestsException.class,
+            retryFor = {TooManyRequestsException.class, RetryableServerException.class},
             maxAttemptsExpression = "#{${employee.client.retry.max-attempts:3}}",
             backoff = @Backoff(delayExpression = "#{${employee.client.retry.delay:500}}", multiplierExpression = "#{${employee.client.retry.multiplier:2.0}}"))
     public List<Employee> findAll() {
@@ -101,7 +102,7 @@ public class EmployeeClientAdapter implements EmployeePort {
 
     @Override
     @Retryable(
-            retryFor = TooManyRequestsException.class,
+            retryFor = {TooManyRequestsException.class, RetryableServerException.class},
             maxAttemptsExpression = "#{${employee.client.retry.max-attempts:3}}",
             backoff = @Backoff(delayExpression = "#{${employee.client.retry.delay:500}}", multiplierExpression = "#{${employee.client.retry.multiplier:2.0}}"))
     public Employee create(CreateEmployeeRequest request) {
@@ -126,7 +127,7 @@ public class EmployeeClientAdapter implements EmployeePort {
 
     @Override
     @Retryable(
-            retryFor = TooManyRequestsException.class,
+            retryFor = {TooManyRequestsException.class, RetryableServerException.class},
             maxAttemptsExpression = "#{${employee.client.retry.max-attempts:3}}",
             backoff = @Backoff(delayExpression = "#{${employee.client.retry.delay:500}}", multiplierExpression = "#{${employee.client.retry.multiplier:2.0}}"))
     public boolean deleteByName(String name) {
@@ -170,11 +171,11 @@ public class EmployeeClientAdapter implements EmployeePort {
 
     private Mono<? extends Throwable> handle5xxError(ClientResponse response, String operation) {
         int statusCode = response.statusCode().value();
-        logger.error("Server error {} while {} correlationId={}", statusCode, operation, getCorrelationId());
+        logger.warn("Server error {} while {} correlationId={}, will retry", statusCode, operation, getCorrelationId());
         return response
                 .bodyToMono(String.class)
                 .defaultIfEmpty("Unknown server error")
-                .map(body -> new ExternalServiceException("Server error while " + operation + ": " + body, statusCode));
+                .map(body -> new RetryableServerException("Server error while " + operation + ": " + body, statusCode));
     }
 
     @Recover
@@ -197,6 +198,29 @@ public class EmployeeClientAdapter implements EmployeePort {
     public boolean recoverDeleteByName(TooManyRequestsException e, String name) {
         logger.error(
                 "All retry attempts exhausted for delete name={} correlationId={}", name, getCorrelationId(), e);
+        throw new ServiceUnavailableException("Employee service temporarily unavailable after retries", e);
+    }
+
+    @Recover
+    public List<Employee> recoverFindAllServerError(RetryableServerException e) {
+        logger.error("All retry attempts exhausted for findAll due to server error correlationId={}", getCorrelationId(), e);
+        throw new ServiceUnavailableException("Employee service temporarily unavailable after retries", e);
+    }
+
+    @Recover
+    public Employee recoverCreateServerError(RetryableServerException e, CreateEmployeeRequest request) {
+        logger.error(
+                "All retry attempts exhausted for create name={} due to server error correlationId={}",
+                request.name(),
+                getCorrelationId(),
+                e);
+        throw new ServiceUnavailableException("Employee service temporarily unavailable after retries", e);
+    }
+
+    @Recover
+    public boolean recoverDeleteByNameServerError(RetryableServerException e, String name) {
+        logger.error(
+                "All retry attempts exhausted for delete name={} due to server error correlationId={}", name, getCorrelationId(), e);
         throw new ServiceUnavailableException("Employee service temporarily unavailable after retries", e);
     }
 }
