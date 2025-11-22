@@ -4,6 +4,14 @@ A REST API that wraps the Mock Employee API with **resilience for rate limiting*
 
 ## Quick Start
 
+### Prerequisites
+
+- Java 25+ (api module) / Java 17 (server module)
+- Gradle 9.2.1+ (wrapper included)
+- SDKMAN recommended: run `sdk env` to auto-switch Java versions
+
+### Run
+
 ```bash
 # Check environment and start services
 ./doctor.sh --start
@@ -13,7 +21,8 @@ A REST API that wraps the Mock Employee API with **resilience for rate limiting*
 ./gradlew api:bootRun     # Terminal 2: API (port 8111)
 ```
 
-**Test the API:**
+### Test the API
+
 ```bash
 curl http://localhost:8111/api/v1/employee
 curl http://localhost:8111/api/v1/employee/highestSalary
@@ -22,17 +31,12 @@ curl -X POST http://localhost:8111/api/v1/employee \
   -d '{"name":"Jane Doe","salary":75000,"age":28,"title":"Engineer"}'
 ```
 
-**Run tests:**
+### Run Tests
+
 ```bash
-./gradlew test            # All 102 tests
+./gradlew test            # All tests
 ./gradlew api:test        # API module only
 ```
-
-### Prerequisites
-
-- Java 25+ (api module) / Java 17 (server module)
-- Gradle 9.2.1+ (wrapper included)
-- SDKMAN recommended: run `sdk env` to auto-switch Java versions
 
 ---
 
@@ -53,6 +57,23 @@ flowchart LR
 
     style Service fill:#e1f5fe
     style Mock fill:#fff3e0
+```
+
+### Retry Behavior
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Service
+    participant MockServer
+
+    Client->>Service: Request
+    Service->>MockServer: GET /employee
+    MockServer-->>Service: 429 Rate Limited
+    Note over Service: Exponential backoff
+    Service->>MockServer: Retry
+    MockServer-->>Service: 200 OK
+    Service-->>Client: Response
 ```
 
 ### All 7 Endpoints
@@ -126,6 +147,10 @@ A `GlobalExceptionHandler` maps these consistently across all endpoints.
 ### Fail-Fast on 5xx
 
 Only 429 triggers retry. Server errors (5xx) return immediately as 502—retrying won't fix upstream bugs, and fail-fast lets clients implement their own strategies.
+
+### Delete by ID
+
+The mock server requires employee name for deletion, but the API receives an ID. The implementation fetches the employee first, creating a brief race window. Production would need an ID-based delete endpoint or optimistic locking.
 
 ---
 
