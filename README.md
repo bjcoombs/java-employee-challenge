@@ -174,7 +174,7 @@ employee:
 
 ## Production Considerations
 
-For production deployment, consider adding:
+This implementation is scoped for a coding challenge. For a production system handling real traffic, I would add:
 
 - **Circuit breaker** (Resilience4j) to prevent cascade failures
 - **Bulkhead pattern** to limit concurrent requests during rate limiting
